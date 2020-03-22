@@ -2,29 +2,38 @@ import fs from 'fs'
 import glob from 'glob'
 import path from 'path'
 import chokidar from 'chokidar'
-import { FSTree, FSTreeNode } from '../adt/fs-tree'
-import { logDebugInfo } from "../utils/cli"
+import { Tree, TreeNode } from '../adt/tree'
 
-interface EventMap {
-    [key: string]: Function
+// Data Structure
+export class FSTreeNode extends TreeNode<FSTreeNode, FSTreeNode> {
+    data?: any
+    stat?: fs.Stats
+    isDir: boolean = false
+    physicalPath?: string
+    children: { [key: string]: FSTreeNode } = {}
 }
 
+export class FSTree extends Tree<FSTreeNode> {
+    root: FSTreeNode = new FSTreeNode('', null)
+}
+
+// Delegate
 export interface DataProviderDelegate {
     dispatch(event: string, node: FSTreeNode): void
     castContent(node: FSTreeNode): void
 }
 
+// Implementation
 export class FSDataProvider {
+    dataTree: FSTree = new FSTree()
     sourcePath: string
     ignoreList: string[]
-    dataTree: FSTree
+
     providerDelegate?: DataProviderDelegate
 
     constructor(sourcePath: string, ignoreList: string[]) {
         this.sourcePath = path.resolve(sourcePath)
         this.ignoreList = ignoreList
-
-        this.dataTree = new FSTree()
     }
 
     watch() {
@@ -61,7 +70,7 @@ export class FSDataProvider {
 
         if (!['add', 'addDir', 'change'].includes(event)) return
 
-        const eventMap: EventMap = {
+        const eventMap: { [key: string]: Function } = {
             'add': this.onFSAdd,
             'addDir': this.onFSAddDir,
             'change': this.onFSChange
@@ -75,7 +84,7 @@ export class FSDataProvider {
         const fileName = path.basename(filePhysicalPath)
         const treePath = filePhysicalPath.replace(this.sourcePath + '/', '')
 
-        const fileNode = new FSTreeNode(fileName)
+        const fileNode = new FSTreeNode(fileName, null)
         fileNode.isDir = false
         fileNode.stat = fs.statSync(filePhysicalPath)
         fileNode.physicalPath = filePhysicalPath
@@ -89,7 +98,7 @@ export class FSDataProvider {
         const dirName = path.basename(filePhysicalPath)
         const treePath = filePhysicalPath.replace(this.sourcePath + '/', '')
 
-        const fileNode = new FSTreeNode(dirName)
+        const fileNode = new FSTreeNode(dirName, null)
         fileNode.isDir = true
         fileNode.stat = fs.statSync(filePhysicalPath)
         fileNode.physicalPath = filePhysicalPath

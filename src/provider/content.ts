@@ -4,12 +4,54 @@ import yaml from 'yaml'
 import hljs from 'highlight.js'
 import markdownIt from 'markdown-it'
 
-import { FSTreeNode } from '../adt/fs-tree'
+import { FSTreeNode } from './fs'
 import { RenderDelegate } from '..'
 import { FSDataProvider, DataProviderDelegate } from './fs'
-import { logDebugInfo } from "../utils/cli"
 
 
+// Data Structure
+type ContentTreeChildren = { [key: string]: ContentTreeNode }
+export class ContentTreeNode extends FSTreeNode {
+    source?: FSTreeNode
+    parent: FSTreeNode | null = null
+    children: { [key: string]: FSTreeNode } = {}
+
+    constructor() { super('', null) }
+
+    get data(): any { return this.source!.data }
+
+    getExt(): string { return path.extname(this.name) }
+
+    castParent(): ContentTreeNode | null {
+        return this.parent
+            ? ContentTreeNode.fromFSTreeNode(this.parent)
+            : null
+    }
+
+    castChildren(): ContentTreeChildren {
+        return Object.keys(this.children)
+            .map(v => ContentTreeNode.fromFSTreeNode(this.children[v]))
+            .reduce((obj: ContentTreeChildren, v: ContentTreeNode) => {
+                obj[v.name] = v
+                return obj
+            }, {})
+    }
+
+    static fromFSTreeNode(object: FSTreeNode): ContentTreeNode {
+        const res = new ContentTreeNode()
+        res.source = object
+        res.name = object.name
+        res.isDir = object.isDir
+        res.stat = object.stat
+        res.physicalPath = object.physicalPath
+        res.parent = object.parent
+        res.children = object.children
+        return res
+    }
+}
+
+
+// 3rd Tools
 const md: any = markdownIt({
     html: true,
     highlight: function (str, lang) {
@@ -27,66 +69,74 @@ const md: any = markdownIt({
     .use(require('markdown-it-anchor'))
 
 
+// Implementation
 export class ContentProvider extends FSDataProvider implements DataProviderDelegate {
     renderDelegate?: RenderDelegate
     providerDelegate = this
 
     dispatch(event: string, node: FSTreeNode) {
-        this.castContent(node)
+        const contentNode = ContentTreeNode.fromFSTreeNode(node)
+        this.castContent(contentNode)
 
-        if (!node.isDir) {
-            if (node.name === 'conf.yaml') {
-                this.updateLayoutIndex(node)
-            } else if (node.name === 'site.yaml' && node.getFullPath() === 'site.yaml') {
-                this.updateSiteConf(node)
-                if (!node.data.rootURL) node.data.rootURL = '/'
-                node.data.rootURL = node.data.rootURL.slice(-1) === '/'
-                    ? node.data.rootURL.slice(0, -1)
-                    : node.data.rootURL
+        if (!contentNode.isDir) {
+            if (contentNode.name === 'conf.yaml') {
+                this.updateLayoutIndex(contentNode)
+            } else if (
+                contentNode.name === 'site.yaml'
+                && contentNode.getFullPath() === 'site.yaml'
+            ) {
+                this.updateSiteConf(contentNode)
+
+                if (!contentNode.data.rootURL) {
+                    contentNode.data.rootURL = '/'
+                }
+
+                contentNode.data.rootURL = contentNode.data.rootURL
+                    .slice(-1) === '/'
+                    ? contentNode.data.rootURL.slice(0, -1)
+                    : contentNode.data.rootURL
             }
         }
 
-        if (event === 'add') this.onAddEvent(node)
-        else if (event === 'addDir') this.onAddDirEvent(node)
-        else if (event === 'change') this.onChangeEvent(node)
+        if (event === 'add') this.onAddEvent(contentNode)
+        else if (event === 'addDir') this.onAddDirEvent(contentNode)
+        else if (event === 'change') this.onChangeEvent(contentNode)
     }
 
-    shouldTriggerParentRender(node: FSTreeNode): boolean {
-        return ['.yaml', '.md'].includes(path.extname(node.name))
+    shouldTriggerParentRender(node: ContentTreeNode): boolean {
+        return ['.yaml', '.md'].includes(node.getExt())
     }
 
-    onAddEvent(node: FSTreeNode) {
+    onAddEvent(node: ContentTreeNode) {
         this.renderDelegate!.onContentRenderRequest(
             this.shouldTriggerParentRender(node)
-                ? node.parent!
+                ? node.castParent()!
                 : node
         )
     }
 
-    onAddDirEvent(node: FSTreeNode) {
+    onAddDirEvent(node: ContentTreeNode) {
         this.renderDelegate!.onContentRenderRequest(node)
     }
 
-    onChangeEvent(node: FSTreeNode) {
+    onChangeEvent(node: ContentTreeNode) {
         this.renderDelegate!.onContentRenderRequest(
             this.shouldTriggerParentRender(node)
-                ? node.parent!
+                ? node.castParent()!
                 : node
         )
     }
 
     // Cast Data
-    castContent(node: FSTreeNode) {
-        const ext = path.extname(node.name)
-
-        if (ext === '.md') {
-            node.data = this.onCastMarkdown(node)
-        } else if (ext === '.yaml') {
-            node.data = this.onCastYAML(node)
+    castContent(node: ContentTreeNode) {
+        if (node.getExt() === '.md') {
+            node.source!.data = this.onCastMarkdown(node)
+        } else if (node.getExt() === '.yaml') {
+            node.source!.data = this.onCastYAML(node)
         }
     }
 
-    onCastMarkdown(node: FSTreeNode): string {
+    onCastMarkdown(node: ContentTreeNode): string {
         const globalData = this.renderDelegate!.dataPool.globalData
         let result = md.render(fs.readFileSync(node.physicalPath!).toString())
 
@@ -132,33 +182,33 @@ export class ContentProvider extends FSDataProvider implements DataProviderDeleg
         return result
     }
 
-    onCastYAML(node: FSTreeNode): string {
+    onCastYAML(node: ContentTreeNode): string {
         return yaml.parse(fs.readFileSync(node.physicalPath!).toString())
     }
 
     // Render
-    updateLayoutIndex(node: FSTreeNode) {
+    updateLayoutIndex(node: ContentTreeNode) {
         const layout = node.data.layout
         const tNameTocNodeList = this.renderDelegate!.dataPool.tNameTocNodeList
 
         if (tNameTocNodeList[layout]) {
             if (!tNameTocNodeList[layout].includes(layout)) {
-                tNameTocNodeList[layout].push(node.parent!)
+                tNameTocNodeList[layout].push(node.castParent()!)
             }
         } else {
-            tNameTocNodeList[layout] = [node.parent!]
+            tNameTocNodeList[layout] = [node.castParent()!]
         }
     }
 
-    updateSiteConf(node: FSTreeNode) {
+    updateSiteConf(node: ContentTreeNode) {
         this.renderDelegate!.dataPool.globalData.site = node.data!
-        this.recursiveRender(this.dataTree.root)
+        this.recursiveRender(ContentTreeNode.fromFSTreeNode(this.dataTree.root))
     }
 
-    recursiveRender(node: FSTreeNode) {
+    recursiveRender(node: ContentTreeNode) {
         this.renderDelegate!.onContentRenderRequest(node)
-        Object.keys(node.children).forEach(v => {
-            this.recursiveRender(node.children[v])
+        Object.keys(node.castChildren()).forEach(v => {
+            this.recursiveRender(node.castChildren()[v])
         })
     }
 }
