@@ -3,7 +3,7 @@ import path from 'path'
 import dayjs from 'dayjs'
 
 import { RenderDataPool } from ".."
-import { logRed, logGreen, logDebugInfo } from "../utils/cli"
+import { logRed, logGreen } from "../utils/cli"
 import { selectDOMItem, selectDOMItemWithLimit } from '../utils/render'
 
 interface StringFunctionMap {
