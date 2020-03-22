@@ -148,3 +148,6 @@ temp/
 .history
 
 # End of https://www.gitignore.io/api/node,macos,visualstudiocode
+
+oclif.manifest.json
+yarn.lock

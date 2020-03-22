@@ -101,7 +101,7 @@ export class ThemeProvider extends FSDataProvider implements DataProviderDelegat
         // When change happens on a component
         const templatePath = node.getFullPath()
         if (templatePath.includes('components')) {
-            const parentFolder = node.parent!.parent!.parent!
+            const parentFolder = node.parent!.parent!
 
             const walkDir = (dirNode: FSTreeNode | null): FSTreeNode[] => {
                 return Object.keys(dirNode?.children || {})
