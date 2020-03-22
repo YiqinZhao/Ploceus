@@ -90,6 +90,7 @@ const p = new Ploceus({
 
 p.build()
 
-// Watch will only not start a dev server like the command line behavior! If you need it, we recommend you use a 3rd package like the browser-sync
+// Watch will only not start a dev server like the command line behavior!
+// If you need it, we recommend you use a 3rd package like the browser-sync
 p.watch()
 ```
