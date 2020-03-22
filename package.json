@@ -5,12 +5,13 @@
   "repository": "git@github.com:YiqinZhao/Ploceus.git",
   "author": "Yiqin Zhao <yiqinzhao@outlook.com>",
   "license": "MIT",
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsc"
   },
   "devDependencies": {
-    "typescript": "^3.8.3",
     "@iktakahiro/markdown-it-katex": "^3.1.0",
     "@types/cheerio": "^0.22.16",
     "@types/ejs": "^3.0.1",
@@ -20,7 +21,8 @@
     "@types/markdown-it": "^0.0.9",
     "@types/node": "^13.9.2",
     "@types/rimraf": "^2.0.3",
-    "@types/yaml": "^1.2.0"
+    "@types/yaml": "^1.2.0",
+    "typescript": "^3.8.3"
   },
   "dependencies": {
     "chalk": "^3.0.0",
