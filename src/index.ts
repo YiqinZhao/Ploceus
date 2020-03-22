@@ -28,6 +28,12 @@ export interface RenderDataPool {
     tNameTotNode: StringNodeMap
 }
 
+interface PloceusConfig {
+    contentPath: string,
+    themePath: string,
+    distPath: string
+}
+
 export class Ploceus implements RenderDelegate {
     distPath: string
     renderFn: Function
@@ -37,11 +43,15 @@ export class Ploceus implements RenderDelegate {
 
     ready: boolean = false
 
-    constructor(themeName: string, distPath: string) {
+    constructor(config: PloceusConfig) {
+        const { contentPath, themePath, distPath } = config
+
         this.dataPool = {
             globalData: {
                 themeConf: yaml.parse(
-                    fs.readFileSync(`theme/${themeName}/conf.yaml`).toString()
+                    fs.readFileSync(
+                        path.join(themePath, 'conf.yaml')
+                    ).toString()
                 )
             },
             tNameTocNodeList: {},
@@ -58,12 +68,12 @@ export class Ploceus implements RenderDelegate {
         const ignoreList = ['.DS_Store']
 
         this.themeProvider = new ThemeProvider(
-            `theme/${themeName}`, ignoreList
+            themePath, ignoreList
         )
         this.themeProvider.renderDelegate = this
 
         this.contentProvider = new ContentProvider(
-            'content', ignoreList
+            contentPath, ignoreList
         )
 
         this.contentProvider.renderDelegate = this
