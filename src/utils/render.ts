@@ -1,5 +1,4 @@
 import cheerio from 'cheerio'
-import { logDebugInfo } from './cli'
 
 export function selectDOMItemWithLimit(content: string, selector: string, min: number, max: number) {
     const targets = cheerio.load(content)(selector)
