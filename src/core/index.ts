@@ -149,12 +149,9 @@ export class Ploceus extends ContentDataExtractor implements RenderDelegate {
 
         if (!node.isTemplate()) {
             this.renderAsset(node)
-            return
-        }
-
-        if (this.dataPool.tNameTocNodeList[node.name]) {
+        } else if (this.dataPool.tNameTocNodeList[node.getTemplateName()!]) {
             this.dataPool
-                .tNameTocNodeList[node.name]
+                .tNameTocNodeList[node.getTemplateName()!]
                 .forEach(v => {
                     this.renderPage(v)
                 })

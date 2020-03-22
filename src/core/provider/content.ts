@@ -188,15 +188,15 @@ export class ContentProvider extends FSDataProvider implements DataProviderDeleg
 
     // Render
     updateLayoutIndex(node: ContentTreeNode) {
-        const layout = node.data.layout
+        const template = node.data.template
         const tNameTocNodeList = this.renderDelegate!.dataPool.tNameTocNodeList
 
-        if (tNameTocNodeList[layout]) {
-            if (!tNameTocNodeList[layout].includes(layout)) {
-                tNameTocNodeList[layout].push(node.castParent()!)
+        if (tNameTocNodeList[template]) {
+            if (!tNameTocNodeList[template].includes(template)) {
+                tNameTocNodeList[template].push(node.castParent()!)
             }
         } else {
-            tNameTocNodeList[layout] = [node.castParent()!]
+            tNameTocNodeList[template] = [node.castParent()!]
         }
     }
 

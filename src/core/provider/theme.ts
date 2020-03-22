@@ -32,6 +32,12 @@ export class ThemeTreeNode extends FSTreeNode {
         else return null
     }
 
+    getTemplateName(): string | null {
+        return this.physicalPath
+            ? path.basename(this.physicalPath)
+            : null
+    }
+
     castParent(): ThemeTreeNode | null {
         return this.parent
             ? ThemeTreeNode.fromFSTreeNode(this.parent)
