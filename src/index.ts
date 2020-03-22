@@ -3,12 +3,13 @@ import path from 'path'
 import yaml from 'yaml'
 import rimraf from 'rimraf'
 import minify from 'html-minifier'
+
 import { ensureDir } from './utils/fs'
 import { StringNodeListMap, StringNodeMap } from './adt/common'
 import { ThemeProvider } from './provider/theme'
 import { ContentProvider } from './provider/content'
 import { Renderer } from './render/renderer'
-import { FSTreeNode } from "./adt/fs-tree"
+import { FSTreeNode } from './adt/fs-tree'
 import { logRed } from "./utils/cli"
 
 export interface RenderDelegate {
