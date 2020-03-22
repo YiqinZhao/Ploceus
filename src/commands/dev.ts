@@ -6,10 +6,10 @@ import { Ploceus } from '../core'
 import { Command, flags } from '@oclif/command'
 
 export default class Build extends Command {
-    static description = 'watch file changes and rebuild. Also start a dev server.'
+    static description = 'Watch file changes and rebuild. Also start a dev server.'
 
     static examples = [
-        `$ ploceus watch`,
+        `$ ploceus dev`,
     ]
 
     static flags = {

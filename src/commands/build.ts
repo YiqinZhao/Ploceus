@@ -5,7 +5,7 @@ import { Ploceus } from '../core'
 import { Command, flags } from '@oclif/command'
 
 export default class Build extends Command {
-    static description = 'build a site.'
+    static description = 'Build a site.'
 
     static examples = [
         `$ ploceus build`,
