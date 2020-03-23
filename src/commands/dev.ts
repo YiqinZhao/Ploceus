@@ -1,5 +1,6 @@
 import fs from 'fs'
 import path from 'path'
+import chalk from 'chalk'
 
 import bs from 'browser-sync'
 import { Ploceus } from '../core'
@@ -53,6 +54,8 @@ export default class Build extends Command {
         })
 
         const port = bsInstance.getOption('port')
-        this.log('Development server started at', port)
+        this.log('---------------------------------------')
+        this.log(`${chalk.bold('Development server started at port')} ${chalk.bold(chalk.blue(port))}`)
+        this.log('---------------------------------------')
     }
 }
