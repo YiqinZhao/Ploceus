@@ -2,13 +2,12 @@ import fs from 'fs'
 import path from 'path'
 import yaml from 'yaml'
 import rimraf from 'rimraf'
-import minify from 'html-minifier'
 
+import { Renderer } from './render'
+import { PageRenderingRecipe } from './render/page'
+import { AssetRenderingRecipe } from './render/asset'
 import { ThemeTreeNode, ThemeProvider } from './provider/theme'
 import { ContentTreeNode, ContentProvider } from './provider/content'
-import { Renderer } from './render'
-import { logRed } from "./utils/cli"
-import { ensureDir } from './utils/fs'
 
 export interface RenderDelegate {
     dataPool: RenderDataPool
@@ -33,50 +32,7 @@ interface PloceusConfig {
     production?: boolean
 }
 
-class ContentDataExtractor {
-    // Render Data Prepare
-    extractDirNodeData(node: ContentTreeNode): any {
-        const children = node.castChildren()
-        return {
-            name: node.name,
-            stat: node.stat,
-            data: node.data,
-            ...Object.keys(children)
-                .map(v => children[v])
-                .filter(v => !v.isDir)
-                .reduce((obj: any, v) => {
-                    obj[v.name] = v.data
-                    return obj
-                }, {}),
-            children: Object.keys(children)
-                .map(v => children[v])
-                .filter(v => v.isDir)
-                .map(v => this.extractDirNodeData(v))
-        }
-    }
-
-    extractBindData(node: ContentTreeNode, data: any) {
-        const conf = data['conf.yaml']
-        data.bind = {}
-        Object.keys(conf.bind).forEach((v: string) => {
-            data.bind[v] = {
-                data: this.extractDirNodeData(
-                    v.split('/').reduce(
-                        (node: ContentTreeNode, v: string): ContentTreeNode => {
-                            if (v === '..') return node.castParent()!
-                            else return node.castChildren()[v]
-                        },
-                        node
-                    )
-                ),
-                ...conf.bind[v]
-            }
-        })
-    }
-}
-
-export class Ploceus extends ContentDataExtractor implements RenderDelegate {
-    distPath: string
+export class Ploceus implements RenderDelegate {
     renderFn: Function
     dataPool: RenderDataPool
     themeProvider: ThemeProvider
@@ -86,8 +42,6 @@ export class Ploceus extends ContentDataExtractor implements RenderDelegate {
     production?: boolean
 
     constructor(config: PloceusConfig) {
-        super()
-
         const { contentPath, themePath, distPath, production } = config
 
         this.dataPool = {
@@ -102,12 +56,12 @@ export class Ploceus extends ContentDataExtractor implements RenderDelegate {
             tNameTotNode: {}
         }
 
-        this.distPath = distPath
         this.production = production
 
         rimraf.sync(distPath)
 
         const renderer = new Renderer()
+        renderer.distPath = distPath
         renderer.dataPool = this.dataPool
         this.renderFn = renderer.render.bind(renderer)
 
@@ -140,83 +94,33 @@ export class Ploceus extends ContentDataExtractor implements RenderDelegate {
     onContentRenderRequest(node: ContentTreeNode): void {
         if (!this.ready) return
 
-        if (node.isDir) this.renderPage(node)
-        else this.renderAsset(node)
+        if (node.isDir) {
+            this.renderFn(new PageRenderingRecipe(
+                node.getFullPath(), node
+            ))
+        }
+        else {
+            this.renderFn(new AssetRenderingRecipe(
+                node.getFullPath(), node
+            ))
+        }
     }
 
     onTemplateRenderRequest(node: ThemeTreeNode): void {
         if (!this.ready) return
 
         if (!node.isTemplate()) {
-            this.renderAsset(node)
+            this.renderFn(new AssetRenderingRecipe(
+                node.getFullPath(), node
+            ))
         } else if (this.dataPool.tNameTocNodeList[node.getTemplateName()!]) {
             this.dataPool
                 .tNameTocNodeList[node.getTemplateName()!]
                 .forEach(v => {
-                    this.renderPage(v)
+                    this.renderFn(new PageRenderingRecipe(
+                        node.getFullPath(), v
+                    ))
                 })
         }
-    }
-
-    renderAsset(node: ContentTreeNode | ThemeTreeNode): void {
-        if (node.isDir) return
-
-        const ext = path.extname(node.name)
-        const targetExt = [
-            '.jpg', '.jpeg', '.svg', '.png',
-            '.pdf', '.css', '.bmp'
-        ]
-
-        if (targetExt.includes(ext) || node.getFullPath().includes('assets')) {
-            const targetPath = path.resolve(path.join(this.distPath, node.getFullPath()))
-
-            let copyFlag = !fs.existsSync(targetPath)
-                || (fs.existsSync(targetPath)
-                    && fs.statSync(targetPath).mtime < node.stat!.mtime)
-
-            if (copyFlag) {
-                ensureDir(path.dirname(targetPath))
-                fs.copyFileSync(node.physicalPath!, targetPath)
-            }
-        }
-    }
-
-    renderPage(node: ContentTreeNode): void {
-        if (!node.getChildren()['conf.yaml']) return
-
-        const data = this.extractDirNodeData(node)
-        data.sourcePath = node.getFullPath()
-
-        const layout = data['conf.yaml'].template
-        const templateNode = this.dataPool.tNameTotNode[layout]
-
-        if (!templateNode) {
-            logRed('error', 'render', `no such layout ${layout}`)
-            return
-        }
-
-        const conf = data['conf.yaml']
-        if (!conf) return
-        if (conf.bind) this.extractBindData(node, data)
-
-        this.renderFn(templateNode.physicalPath!, data,
-            (err: Error, html: string) => {
-                if (err) return
-
-                const conf = data['conf.yaml']
-                const outputPath = path.join(
-                    this.distPath,
-                    node.getFullPath(),
-                    conf.trimPrefix ? '..' : '',
-                    'index.html'
-                )
-                const output = this.production
-                    ? minify.minify(html, { minifyCSS: true, minifyJS: true })
-                    : html
-
-                ensureDir(path.dirname(outputPath))
-                fs.writeFileSync(outputPath, output)
-            }
-        )
     }
 }

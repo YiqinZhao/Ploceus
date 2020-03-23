@@ -1,63 +1,51 @@
-import ejs from 'ejs'
-import path from 'path'
-import dayjs from 'dayjs'
+import { Mixin } from 'ts-mixer'
 
 import { RenderDataPool } from ".."
-import { logRed, logGreen } from "../utils/cli"
-import { selectDOMItem, selectDOMItemWithLimit } from '../utils/render'
+import { PageRenderingRecipe, PageRenderer } from './page'
+import { AssetRenderingRecipe, AssetRenderer } from './asset'
+import { logRed, logDebugInfo } from "../utils/cli"
 
-interface StringFunctionMap {
-    [key: string]: Function
+export interface RenderingRecipe {
+    id: string
+}
+
+export interface DedicatedRenderer {
+    distPath: string
+    dataPool?: RenderDataPool
 }
 
 interface DebouncePool {
     [key: string]: NodeJS.Timeout
 }
 
-export class Renderer {
+export class Renderer extends Mixin(AssetRenderer, PageRenderer) {
+    distPath: string = '.'
     dataPool?: RenderDataPool
     debouncePool: DebouncePool = {}
 
-    renderEJS(templatePath: string, data: any, callback: Function) {
-        ejs.renderFile(templatePath, {
-            data
-        }, {
-            context: {
-                globalData: this.dataPool!.globalData,
-                utils: {
-                    dayjs,
-                    selectDOMItem,
-                    selectDOMItemWithLimit
-                }
-            }
-        }, (err, html) => {
-            if (err) {
-                logRed('error', 'render', templatePath)
-                console.log(err.message)
-            } else {
-                logGreen('success', 'render', data.sourcePath)
-            }
-
-            callback(err, html)
-        })
-    }
-
-    render(templatePath: string, data: any, callback: Function) {
-        const templateExt = path.extname(templatePath)
-        const renderMap: StringFunctionMap = {
-            '.ejs': this.renderEJS.bind(this)
+    render(recipe: RenderingRecipe) {
+        if (this.debouncePool[recipe.id]) {
+            clearTimeout(this.debouncePool[recipe.id])
         }
 
-        if (this.debouncePool[data.sourcePath]) {
-            clearTimeout(this.debouncePool[data.sourcePath])
+        let renderFn = undefined
+
+        if (recipe instanceof AssetRenderingRecipe)
+            renderFn = this.renderAsset
+        else if (recipe instanceof PageRenderingRecipe)
+            renderFn = this.renderPage
+
+        if (!renderFn) {
+            logRed('error', 'renderer', ` not implemented.`)
+            return
         }
 
-        this.debouncePool[data.sourcePath] = (
-            function (templatePath, data, cb, render) {
+        this.debouncePool[recipe.id] = (
+            function (recipe: RenderingRecipe, render: Function) {
                 return setTimeout(() => {
-                    render(templatePath, data, cb)
+                    render(recipe)
                 }, 100)
             }
-        )(templatePath, data, callback, renderMap[templateExt]!)
+        )(recipe, renderFn.bind(this))
     }
 }
