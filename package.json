@@ -1,6 +1,6 @@
 {
   "name": "ploceus",
-  "version": "0.0.6",
+  "version": "0.0.7",
   "main": "./dist/core/index.js",
   "repository": "git@github.com:YiqinZhao/Ploceus.git",
   "author": "Yiqin Zhao <yiqinzhao@outlook.com>",
