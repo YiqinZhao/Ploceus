@@ -122,9 +122,9 @@ export class ThemeProvider extends FSDataProvider implements DataProviderDelegat
             walkDir(parentFolder)
                 .filter(v => {
                     return v.data?.includes(
-                        `include('../components/${name}/${name}.ejs'`
+                        `include('./components/${name}.ejs'`
                     ) || v.data?.includes(
-                        `include('../${name}/${name}.ejs'`
+                        `include('./${name}.ejs'`
                     )
                 })
                 .forEach(v => { this.onChangeEvent(ThemeTreeNode.fromFSTreeNode(v)) })
