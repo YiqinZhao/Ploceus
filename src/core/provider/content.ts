@@ -85,8 +85,6 @@ export class ContentProvider extends FSDataProvider implements DataProviderDeleg
                 contentNode.name === 'site.yaml'
                 && contentNode.getFullPath() === 'site.yaml'
             ) {
-                this.updateSiteConf(contentNode)
-
                 if (!contentNode.data.rootURL) {
                     contentNode.data.rootURL = '/'
                 }
@@ -95,6 +93,8 @@ export class ContentProvider extends FSDataProvider implements DataProviderDeleg
                     .slice(-1) === '/'
                     ? contentNode.data.rootURL.slice(0, -1)
                     : contentNode.data.rootURL
+
+                this.updateSiteConf(contentNode)
             }
         }
 
@@ -143,7 +143,7 @@ export class ContentProvider extends FSDataProvider implements DataProviderDeleg
         // Custom command
         const commands = globalData.site.markdown?.commands
         if (commands) {
-            let res = result
+            let res: string = result
             Object.keys(commands).forEach(v => {
                 const commandTemplate = commands[v]
                 const commandCalls = result.match(new RegExp(`\!${v}\(.*?\)\!`, 'g'))
@@ -154,7 +154,7 @@ export class ContentProvider extends FSDataProvider implements DataProviderDeleg
                             .split(',')
                             .map(v => v.trim())
                             .reduce((s, v, i) => {
-                                return s.replace(`#${i}`, v)
+                                return s.replace(new RegExp(`#${i}`, 'g'), v)
                             }, commandTemplate)
                         res = res.replace(e, commandState)
                     })
@@ -202,13 +202,21 @@ export class ContentProvider extends FSDataProvider implements DataProviderDeleg
 
     updateSiteConf(node: ContentTreeNode) {
         this.renderDelegate!.dataPool.globalData.site = node.data!
-        this.recursiveRender(ContentTreeNode.fromFSTreeNode(this.dataTree.root))
-    }
-
-    recursiveRender(node: ContentTreeNode) {
-        this.renderDelegate!.onContentRenderRequest(node)
-        Object.keys(node.castChildren()).forEach(v => {
-            this.recursiveRender(node.castChildren()[v])
-        })
+        const tNameTocNodeList = this.renderDelegate!.dataPool.tNameTocNodeList
+        Object.keys(tNameTocNodeList)
+            .map(v => tNameTocNodeList[v])
+            .forEach((v: ContentTreeNode[]) => {
+                v.forEach(v => {
+                    Object.keys(v.children)
+                        .filter(k => k.includes('.md'))
+                        .map(k => v.children[k])
+                        .forEach(v => {
+                            this.castContent(
+                                ContentTreeNode.fromFSTreeNode(v)
+                            )
+                        })
+                    this.renderDelegate!.onContentRenderRequest(v)
+                })
+            })
     }
 }
