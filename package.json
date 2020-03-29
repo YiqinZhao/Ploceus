@@ -19,10 +19,6 @@
     "prepack": "rm -rf dist && tsc -b && oclif-dev manifest && oclif-dev readme"
   },
   "devDependencies": {
-    "@iktakahiro/markdown-it-katex": "^3.1.0",
-    "@oclif/command": "^1",
-    "@oclif/config": "^1",
-    "@oclif/plugin-help": "^2",
     "@types/browser-sync": "^2.26.1",
     "@types/cheerio": "^0.22.16",
     "@types/ejs": "^3.0.1",
@@ -38,6 +34,9 @@
   "dependencies": {
     "@oclif/dev-cli": "^1",
     "@oclif/test": "^1",
+    "@oclif/command": "^1",
+    "@oclif/config": "^1",
+    "@oclif/plugin-help": "^2",
     "browser-sync": "^2.26.7",
     "chalk": "^3.0.0",
     "cheerio": "^1.0.0-rc.3",
@@ -49,6 +48,7 @@
     "html-minifier": "^4.0.0",
     "markdown-it": "^10.0.0",
     "markdown-it-anchor": "^5.2.5",
+    "@iktakahiro/markdown-it-katex": "^3.1.0",
     "rimraf": "^3.0.2",
     "ts-mixer": "^5.0.0",
     "tslib": "^1",
