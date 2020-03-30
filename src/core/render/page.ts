@@ -85,7 +85,15 @@ export class PageRenderer implements DedicatedRenderer {
                 logGreen('success', 'render', data.sourcePath)
             }
 
-            callback(err, html)
+            // Move all style to the front style slot
+            let output = html
+            if (html.includes('<!-- StyleSlot -->')) {
+                const styleBundle = html.match(/<style[^>]*>([^<]+)<\/style>/g)?.join('') || ''
+                output = html.replace(/<style[^>]*>([^<]+)<\/style>/g, '')
+                output = output.replace(/\<\!-- StyleSlot --\>/g, styleBundle)
+            }
+
+            callback(err, output)
         })
     }
 
