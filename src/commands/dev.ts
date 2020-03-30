@@ -14,7 +14,8 @@ export default class Build extends Command {
     ]
 
     static flags = {
-        help: flags.help({ char: 'h', })
+        help: flags.help({ char: 'h', }),
+        noOpen: flags.boolean({ char: 'n', description: 'not open browser', default: false })
     }
 
     static args = [
@@ -50,7 +51,8 @@ export default class Build extends Command {
             server: './dist',
             logLevel: 'silent',
             files: '**/*',
-            ghostMode: false
+            ghostMode: false,
+            open: !flags.noOpen
         })
 
         const port = bsInstance.getOption('port')
