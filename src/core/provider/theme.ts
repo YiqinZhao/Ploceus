@@ -71,6 +71,7 @@ export class ThemeTreeNode extends FSTreeNode {
 export class ThemeProvider extends FSDataProvider implements DataProviderDelegate {
     providerDelegate = this
     renderDelegate?: RenderDelegate
+    templateNodePool: ThemeTreeNode[] = []
 
     dispatch(event: string, node: FSTreeNode) {
         const templateNode = ThemeTreeNode.fromFSTreeNode(node)
@@ -86,6 +87,7 @@ export class ThemeProvider extends FSDataProvider implements DataProviderDelegat
         if (!node.isTemplate()) return
         if (node.getTemplateType() === SupportedTemplateType.ejs) {
             node.source!.data = fs.readFileSync(node.physicalPath!).toString()
+            this.templateNodePool.push(node)
         } else {
             throw new Error('Not implemented!')
         }
@@ -107,27 +109,17 @@ export class ThemeProvider extends FSDataProvider implements DataProviderDelegat
         // When change happens on a component
         const templatePath = node.getFullPath()
         if (templatePath.includes('components')) {
-            const parentFolder = node.parent!.parent!
-
-            const walkDir = (dirNode: FSTreeNode | null): FSTreeNode[] => {
-                return Object.keys(dirNode?.children || {})
-                    .map(v => dirNode!.children[v])
-                    .reduce((arr: FSTreeNode[], v: FSTreeNode): FSTreeNode[] => {
-                        if (v.name.includes('.ejs')) return arr.concat([v])
-                        else if (v.isDir) return arr.concat(walkDir(v))
-                        else return arr
-                    }, [])
-            }
-
-            walkDir(parentFolder)
-                .filter(v => {
-                    return v.data?.includes(
-                        `include('./components/${name}.ejs'`
-                    ) || v.data?.includes(
-                        `include('./${name}.ejs'`
-                    )
-                })
-                .forEach(v => { this.onChangeEvent(ThemeTreeNode.fromFSTreeNode(v)) })
+            this.templateNodePool.forEach(v => {
+                const includeRegExp = new RegExp(`include.+${node.name}`, 'g')
+                if (v.data?.match(includeRegExp)?.length > 0) {
+                    if (this.renderDelegate?.dataPool.tNameTocNodeList[v.name]) {
+                        this.renderDelegate?.dataPool.tNameTocNodeList[v.name]
+                            .forEach(v => {
+                                this.renderDelegate!.onContentRenderRequest(v)
+                            })
+                    }
+                }
+            })
 
             return
         }
