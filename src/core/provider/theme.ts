@@ -104,7 +104,6 @@ export class ThemeProvider extends FSDataProvider implements DataProviderDelegat
 
     onChangeEvent(node: ThemeTreeNode) {
         this.renderDelegate!.onTemplateRenderRequest(node)
-        const name = node.name.replace(path.extname(node.name), '')
 
         // When change happens on a component
         const templatePath = node.getFullPath()
@@ -125,8 +124,8 @@ export class ThemeProvider extends FSDataProvider implements DataProviderDelegat
         }
 
         // When happens on a template node
-        if (this.renderDelegate!.dataPool.tNameTocNodeList[name]) {
-            this.renderDelegate!.dataPool.tNameTocNodeList[name]
+        if (this.renderDelegate!.dataPool.tNameTocNodeList[node.name]) {
+            this.renderDelegate!.dataPool.tNameTocNodeList[node.name]
                 .forEach(v => {
                     this.renderDelegate!.onContentRenderRequest(v)
                 })
