@@ -78,22 +78,27 @@ export class PageRenderer implements DedicatedRenderer {
                 }
             }
         }, (err, html) => {
-            if (err) {
-                logRed('error', 'render', templatePath)
-                console.log(err.message)
-            } else {
-                logGreen('success', 'render', data.sourcePath)
-            }
+            try {
+                if (err) {
+                    logRed('error', 'render', templatePath)
+                    console.log(err.message)
+                } else {
+                    logGreen('success', 'render', data.sourcePath)
+                }
 
-            // Move all style to the front style slot
-            let output = html
-            if (html.includes('<!-- StyleSlot -->')) {
-                const styleBundle = html.match(/<style[^>]*>([^<]+)<\/style>/g)?.join('') || ''
-                output = html.replace(/<style[^>]*>([^<]+)<\/style>/g, '')
-                output = output.replace(/\<\!-- StyleSlot --\>/g, styleBundle)
-            }
+                // Move all style to the front style slot
+                let output = html
+                if (html.includes('<!-- StyleSlot -->')) {
+                    const styleBundle = html.match(/<style[^>]*>([^<]+)<\/style>/g)?.join('') || ''
+                    output = html.replace(/<style[^>]*>([^<]+)<\/style>/g, '')
+                    output = output.replace(/\<\!-- StyleSlot --\>/g, styleBundle)
+                }
 
-            callback(err, output)
+                callback(err, output)
+            } catch (err) {
+                logRed('error', 'render', err.message)
+                callback(err, html)
+            }
         })
     }
 
@@ -123,7 +128,14 @@ export class PageRenderer implements DedicatedRenderer {
         const data = this.extractDirNodeData(node)
         data.sourcePath = node.getFullPath()
 
-        const layout = data['conf.yaml'].template
+        const layout = data['conf.yaml']?.template
+
+        if (!layout) {
+            const confFilePath = path.join(node.physicalPath!, 'conf.yaml')
+            logRed('error', 'renderer', `template name not specified in ${confFilePath}`)
+            return
+        }
+
         const templateNode = this.dataPool!.tNameTotNode[layout]
 
         if (!templateNode) {

@@ -7,6 +7,7 @@ import markdownIt from 'markdown-it'
 import { FSTreeNode } from './fs'
 import { RenderDelegate } from '..'
 import { FSDataProvider, DataProviderDelegate } from './fs'
+import { logRed } from "../utils/cli"
 
 
 // Data Structure
@@ -188,7 +189,13 @@ export class ContentProvider extends FSDataProvider implements DataProviderDeleg
 
     // Render
     updateLayoutIndex(node: ContentTreeNode) {
-        const template = node.data.template
+        const template = node.data?.template
+        if (!template) {
+            const confFilePath = path.join(node.physicalPath!, 'conf.yaml')
+            logRed('error', 'renderer', `template name not specified in ${confFilePath}`)
+            return
+        }
+
         const tNameTocNodeList = this.renderDelegate!.dataPool.tNameTocNodeList
 
         if (tNameTocNodeList[template]) {
