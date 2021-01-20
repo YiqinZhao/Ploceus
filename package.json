@@ -46,7 +46,7 @@
     "dayjs": "^1.8.22",
     "ejs": "^3.0.1",
     "glob": "^7.1.6",
-    "highlight.js": "^9.18.1",
+    "highlight.js": ">=10.4.1",
     "html-minifier": "^4.0.0",
     "markdown-it": "^10.0.0",
     "markdown-it-anchor": "^5.2.5",
