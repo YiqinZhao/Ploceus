@@ -5,9 +5,7 @@
   "repository": "git@github.com:YiqinZhao/Ploceus.git",
   "author": "Yiqin Zhao <yiqinzhao@outlook.com>",
   "license": "MIT",
-  "bin": {
-    "ploceus": "./bin/run"
-  },
+  "bin": "./bin/run",
   "files": [
     "dist",
     "/bin",
@@ -29,6 +27,9 @@
     "@types/node": "^13.9.2",
     "@types/rimraf": "^2.0.3",
     "@types/yaml": "^1.2.0",
+    "@typescript-eslint/eslint-plugin": "^3.9.1",
+    "@typescript-eslint/parser": "^3.9.1",
+    "standardx": "^5.0.0",
     "typescript": "^3.8.3"
   },
   "dependencies": {

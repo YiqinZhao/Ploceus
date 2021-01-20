@@ -151,3 +151,5 @@ temp/
 
 oclif.manifest.json
 yarn.lock
+.yarn
+.pnp.js

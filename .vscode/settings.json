@@ -1,6 +1,9 @@
 {
     "cSpell.words": [
         "Ploceus",
+        "iktakahiro",
+        "katex",
         "oclif"
-    ]
+    ],
+    "standard.enable": false
 }
