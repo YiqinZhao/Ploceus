@@ -1,126 +1,84 @@
-import fs from 'fs'
-import path from 'path'
-import yaml from 'yaml'
-import rimraf from 'rimraf'
+import fs from "fs"
+import util from "util"
+import path from "path"
+import chokidar from "chokidar"
 
-import { Renderer } from './render'
-import { PageRenderingRecipe } from './render/page'
-import { AssetRenderingRecipe } from './render/asset'
-import { ThemeTreeNode, ThemeProvider } from './provider/theme'
-import { ContentTreeNode, ContentProvider } from './provider/content'
-
-export interface RenderDelegate {
-    dataPool: RenderDataPool
-
-    onContentRenderRequest(node: ContentTreeNode): void
-    onTemplateRenderRequest(node: ThemeTreeNode): void
-
-    build(): void
-    watch(): void
+enum RecognizedFileType {
+    dir,
+    yaml,
+    md,
+    other
 }
 
-export interface RenderDataPool {
-    globalData: any,
-    tNameTocNodeList: { [key: string]: ContentTreeNode[] },
-    tNameTotNode: { [key: string]: ThemeTreeNode }
+interface FSTreeNode {
+    filePath: string
+    fileType: RecognizedFileType
+
+    parent?: FSTreeNode
+    children: { [key: string]: FSTreeNode }
 }
 
-interface PloceusConfig {
-    contentPath: string,
-    themePath: string,
-    distPath: string,
-    production?: boolean
+class FSTree {
+    rootNode: FSTreeNode
+    private rootPath: string
+
+    constructor(rootPath: string) {
+        this.rootNode = {
+            filePath: rootPath, fileType: RecognizedFileType.dir,
+            children: {}
+        }
+        this.rootPath = rootPath
+    }
+
+    addNode(nodePath: string) {
+        const rel = path.relative(this.rootPath, nodePath).split(path.sep)
+        if (rel.length === 0) return
+
+        const ext: string = path.extname(nodePath)
+        let nodeType: RecognizedFileType
+
+        if (fs.lstatSync(nodePath).isDirectory()) {
+            nodeType = RecognizedFileType.dir
+        } else if (Object.keys(RecognizedFileType).includes(ext)) {
+            nodeType = RecognizedFileType[ext as keyof typeof RecognizedFileType]
+        } else {
+            nodeType = RecognizedFileType.other
+        }
+
+        let parentNode = this.rootNode
+        let node: FSTreeNode = {
+            filePath: nodePath, fileType: nodeType,
+            children: {}
+        }
+
+        for (var i = 0; i < rel.length - 1; i++) {
+            parentNode = parentNode.children![rel[i]]
+        }
+
+        parentNode.children[rel[rel.length - 1]] = node
+        node.parent = parentNode
+
+        // console.log(util.inspect(this.rootNode, { depth: null }))
+    }
+
+    castNodeData(node: FSTreeNode) { }
 }
 
-export class Ploceus implements RenderDelegate {
-    renderFn: Function
-    dataPool: RenderDataPool
-    themeProvider: ThemeProvider
-    contentProvider: ContentProvider
+export class FileTreeBuilder {
+    rootPath: string
 
-    ready: boolean = false
-    production?: boolean
+    private fsTree: FSTree
 
-    constructor(config: PloceusConfig) {
-        const { contentPath, themePath, distPath, production } = config
+    constructor(rootPath: string) {
+        this.rootPath = path.resolve(rootPath)
+        this.fsTree = new FSTree(this.rootPath)
 
-        this.dataPool = {
-            globalData: {
-                themeConf: yaml.parse(
-                    fs.readFileSync(
-                        path.join(themePath, 'conf.yaml')
-                    ).toString()
-                )
-            },
-            tNameTocNodeList: {},
-            tNameTotNode: {}
-        }
+        chokidar.watch(this.rootPath).on("all", (event, filePath) => {
+            if (filePath == this.rootPath) return
 
-        this.production = production
-
-        rimraf.sync(distPath)
-
-        const renderer = new Renderer()
-        renderer.distPath = distPath
-        renderer.dataPool = this.dataPool
-        this.renderFn = renderer.render.bind(renderer)
-
-        const ignoreList = ['.DS_Store']
-
-        this.themeProvider = new ThemeProvider(
-            themePath, ignoreList
-        )
-        this.themeProvider.renderDelegate = this
-
-        this.contentProvider = new ContentProvider(
-            contentPath, ignoreList
-        )
-
-        this.contentProvider.renderDelegate = this
-        this.build()
-        this.ready = true
-    }
-
-    build() {
-        this.themeProvider.build()
-        this.contentProvider.build()
-    }
-
-    watch() {
-        this.themeProvider.watch()
-        this.contentProvider.watch()
-    }
-
-    onContentRenderRequest(node: ContentTreeNode): void {
-        if (!this.ready) return
-
-        if (node.isDir) {
-            this.renderFn(new PageRenderingRecipe(
-                node.getFullPath(), node
-            ))
-        }
-        else {
-            this.renderFn(new AssetRenderingRecipe(
-                node.getFullPath(), node
-            ))
-        }
-    }
-
-    onTemplateRenderRequest(node: ThemeTreeNode): void {
-        if (!this.ready) return
-
-        if (!node.isTemplate()) {
-            this.renderFn(new AssetRenderingRecipe(
-                node.getFullPath(), node
-            ))
-        } else if (this.dataPool.tNameTocNodeList[node.getTemplateName()!]) {
-            this.dataPool
-                .tNameTocNodeList[node.getTemplateName()!]
-                .forEach(v => {
-                    this.renderFn(new PageRenderingRecipe(
-                        node.getFullPath(), v
-                    ))
-                })
-        }
+            if (event === "addDir" || event == "add") {
+                this.fsTree.addNode(filePath)
+            }
+        })
     }
 }

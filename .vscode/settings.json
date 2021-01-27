@@ -5,5 +5,17 @@
         "katex",
         "oclif"
     ],
-    "standard.enable": false
+    "standard.enable": false,
+    "files.exclude": {
+        "**/.git": true,
+        "**/.svn": true,
+        "**/.hg": true,
+        "**/CVS": true,
+        "**/.DS_Store": true,
+        ".pnp.js": true,
+        "oclif.manifest.json": true,
+        ".yarn": true,
+        "bin": true,
+        "node_modules": true
+    }
 }
