@@ -3,8 +3,9 @@ import ejs from "ejs"
 import path from "path"
 import dayjs from "dayjs"
 import { Ploceus } from "."
+import consola from "consola"
+import { minify } from "html-minifier"
 import { FSTreeNode, RecognizedFileType } from "./fstree"
-import { fstat } from "fs"
 
 export class RenderController {
     private timer?: NodeJS.Timeout
@@ -61,8 +62,8 @@ export class RenderController {
                 return obj
             }, {
                 meta: {
-                    filePath: node.filePath,
-                    basename: path.basename(node.filePath)
+                    basename: node.baseName,
+                    filePath: node.filePath
                 }
             })
     }
@@ -83,6 +84,7 @@ export class RenderController {
             .slice(1)
             .join(path.sep)
 
+
         // Render to file
         const outFilePath = path.resolve(
             this.controller.distPath,
@@ -91,15 +93,19 @@ export class RenderController {
 
         const templateNode = this.controller.findTemplateNode(templateName)
 
+        // Invoke renderer specific function
         this.doEjsRendering(templateNode.filePath, data, (err: Error | undefined, html: string) => {
+            if (err) {
+                consola.error(data.meta.filePath)
+                console.error(err);
+                process.exit()
+            }
+
             fs.mkdirSync(path.dirname(outFilePath), { recursive: true })
-            fs.writeFileSync(outFilePath, html)
+            fs.writeFileSync(outFilePath, minify(html, { minifyCSS: true, minifyJS: true }))
+
+            consola.success(data.meta.filePath)
         })
-
-        // console.log(data)
-        // console.log(outFilePath)
-
-        // more render
     }
 
     doEjsRendering(templatePath: string, data: any, callback: Function) {
@@ -113,26 +119,29 @@ export class RenderController {
                 }
             }
         }, (err, html) => {
-            callback(err, html)
-            // try {
-            //     if (err) {
-            //         logRed('error', 'render', templatePath)
-            //         console.log(err.message)
-            //     } else {
-            //         logGreen('success', 'render', data.sourcePath)
-            //     }
+            let output = html
+            if (html && html.includes('<!-- StyleSlot -->')) {
+                const styleBundle = html.match(/<style[^>]*>([^<]+)<\/style>/g)?.join('') || ''
+                output = html.replace(/<style[^>]*>([^<]+)<\/style>/g, '')
+                output = output.replace(/\<\!-- StyleSlot --\>/g, styleBundle)
+            }
 
-            //     // Move all style to the front style slot
-            //     let output = html
-            //     if (html.includes('<!-- StyleSlot -->')) {
-            //         const styleBundle = html.match(/<style[^>]*>([^<]+)<\/style>/g)?.join('') || ''
-            //         output = html.replace(/<style[^>]*>([^<]+)<\/style>/g, '')
-            //         output = output.replace(/\<\!-- StyleSlot --\>/g, styleBundle)
-            //     }
+            callback(err, output)
+            // try {
+            //     // err ? consola.error("render", templatePath)
+            //     //     : consola.success("render", data.meta.filePath)
+
+            //     // // Move all style to the front style slot
+            //     // let output = html
+            //     // if (html.includes('<!-- StyleSlot -->')) {
+            //     //     const styleBundle = html.match(/<style[^>]*>([^<]+)<\/style>/g)?.join('') || ''
+            //     //     output = html.replace(/<style[^>]*>([^<]+)<\/style>/g, '')
+            //     //     output = output.replace(/\<\!-- StyleSlot --\>/g, styleBundle)
+            //     // }
 
             //     callback(err, output)
             // } catch (err) {
-            //     logRed('error', 'render', err.message)
+            //     consola.error("render", err.message)
             //     callback(err, html)
             // }
         })
@@ -149,8 +158,6 @@ export class RenderController {
             if (!isRenderAnchor) return
 
             this.render(v)
-
-            process.exit()
         })
     }
 }

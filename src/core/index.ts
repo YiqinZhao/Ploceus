@@ -31,29 +31,14 @@ export class Ploceus {
 
             let node: FSTreeNode | undefined
 
-            if (event === "addDir" || event == "add") {
-                node = this.fsTree.addNodeByPath(filePath)
-                if (node && isContent) this.fsTree.castNodeData(node)
 
-                if (node) {
-                    this.fsTree.castNodeData(node)
-                    const nodeBaseName = path.basename(filePath)
-                    if (["theme.yaml", "site.yaml"].includes(nodeBaseName)) {
-                        this.globalData[nodeBaseName] = node.data
-                    }
-                }
-            }
+            // FS events
+            if (event === "addDir" || event == "add") node = this.fsTree.addNodeByPath(filePath)
+            if (event === "change") node = this.fsTree.findNodeByPath(filePath)
 
-            if (event === "change") {
-                node = this.fsTree.findNodeByPath(filePath)
-                if (node && isContent) this.fsTree.castNodeData(node)
-
-                if (node) {
-                    const nodeBaseName = path.basename(filePath)
-                    if (["theme.yaml", "site.yaml"].includes(nodeBaseName)) {
-                        this.globalData[nodeBaseName] = node.data
-                    }
-                }
+            if (node) {
+                this.fsTree.castNodeData(node)
+                this.hookSpecialFile(node)
             }
 
             if (event === "unlink" || event == "unlinkDir") {
@@ -61,11 +46,13 @@ export class Ploceus {
                 this.renderController.deleteTemplateMapNode(filePath)
             }
 
+
             // render content node
             while (node && isContent) {
                 this.renderController.feed(node)
                 node = node.parent
             }
+
 
             // render template node
             if (isTemplate) {
@@ -76,6 +63,12 @@ export class Ploceus {
                 }
             }
         })
+    }
+
+    hookSpecialFile(node: FSTreeNode) {
+        if (["theme.yaml", "site.yaml"].includes(node.baseName)) {
+            this.globalData[node.baseName] = node.data
+        }
     }
 
     findTemplateNode(templateName: string): FSTreeNode {

@@ -3,9 +3,9 @@ import path from "path"
 import yaml from "js-yaml"
 import matter from "gray-matter"
 
+import { Ploceus } from "."
 import hljs from "highlight.js"
 import markdownIt from "markdown-it"
-import { Ploceus } from "."
 
 const md: any = markdownIt({
     html: true,
@@ -25,15 +25,15 @@ const md: any = markdownIt({
 
 
 export enum RecognizedFileType {
-    dir,
-    yaml,
-    md,
+    dir, yaml, md,
+    png, jpg, jpeg, bmp,
     other
 }
 
 export interface FSTreeNode {
     data?: any
     filePath: string
+    baseName: string
     fileType: RecognizedFileType
 
     parent?: FSTreeNode
@@ -47,7 +47,9 @@ export class FSTree {
     constructor(controller: Ploceus) {
         this.controller = controller
         this.rootNode = {
-            filePath: this.controller.rootPath, fileType: RecognizedFileType.dir,
+            baseName: path.basename(this.controller.rootPath),
+            filePath: this.controller.rootPath,
+            fileType: RecognizedFileType.dir,
             children: {}
         }
     }
@@ -79,7 +81,9 @@ export class FSTree {
         }
 
         let node: FSTreeNode = {
-            filePath: nodePath, fileType: nodeType,
+            baseName: path.basename(nodePath),
+            filePath: nodePath,
+            fileType: nodeType,
             children: {}
         }
 
@@ -111,11 +115,6 @@ export class FSTree {
             let data = matter(fs.readFileSync(node.filePath, 'utf-8'))
             data.content = md.render(data.content)
             node.data = data
-        }
-
-        const nodeBaseName = path.basename(node.filePath)
-        if (nodeBaseName === "site.yaml") {
-            this.controller.globalData[nodeBaseName] = node.data
         }
     }
 }
