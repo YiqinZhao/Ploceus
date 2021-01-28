@@ -1,226 +1,90 @@
-import fs from "fs"
 import util from "util"
 import path from "path"
-import yaml from "js-yaml"
 import chokidar from "chokidar"
-import hljs from "highlight.js"
-import matter from "gray-matter"
-import markdownIt from "markdown-it"
-import { clearTimeout } from "timers"
+import { RenderController } from "./render"
+import { FSTree, FSTreeNode } from "./fstree"
 
-const md: any = markdownIt({
-    html: true,
-    highlight: function (str, lang) {
-        if (lang && hljs.getLanguage(lang)) {
-            try {
-                return '<pre class="hljs"><code>' +
-                    hljs.highlight(lang, str, true).value +
-                    '</code></pre>'
-            } catch (__) { }
-        }
-
-        return '<pre class="hljs"><code>' + md.utils.escapeHtml(str) + '</code></pre>'
-    }
-}).use(require('@iktakahiro/markdown-it-katex'))
-    .use(require('markdown-it-anchor'))
-
-enum RecognizedFileType {
-    dir,
-    yaml,
-    md,
-    other
-}
-
-interface FSTreeNode {
-    data?: any
-    filePath: string
-    fileType: RecognizedFileType
-
-    parent?: FSTreeNode
-    children: { [key: string]: FSTreeNode }
-}
-
-class FSTree {
-    rootNode: FSTreeNode
-    private rootPath: string
-
-    constructor(rootPath: string) {
-        this.rootNode = {
-            filePath: rootPath, fileType: RecognizedFileType.dir,
-            children: {}
-        }
-        this.rootPath = rootPath
-    }
-
-    findNodeByPath(nodePath: string): FSTreeNode | undefined {
-        if (this.rootPath === nodePath) return this.rootNode
-        const rel = path.relative(this.rootPath, nodePath).split(path.sep)
-
-        let node = this.rootNode
-        for (var i = 0; i < rel.length; i++) {
-            node = node.children![rel[i]]
-
-            if (!node) return
-        }
-
-        return node
-    }
-
-    addNodeByPath(nodePath: string): FSTreeNode | undefined {
-        const ext: string = path.extname(nodePath).slice(1)
-        let nodeType: RecognizedFileType
-
-        if (fs.lstatSync(nodePath).isDirectory()) {
-            nodeType = RecognizedFileType.dir
-        } else if (Object.keys(RecognizedFileType).includes(ext)) {
-            nodeType = RecognizedFileType[ext as keyof typeof RecognizedFileType]
-        } else {
-            nodeType = RecognizedFileType.other
-        }
-
-        let node: FSTreeNode = {
-            filePath: nodePath, fileType: nodeType,
-            children: {}
-        }
-
-        let parentNode = this.findNodeByPath(path.dirname(nodePath))
-        if (!parentNode) return
-
-        parentNode!.children[path.basename(nodePath)] = node
-        node.parent = parentNode
-
-        // console.log(util.inspect(this.rootNode, { depth: null }))
-
-        return node
-    }
-
-    removeNodeByPath(nodePath: string): FSTreeNode | undefined {
-        let parentNode = this.findNodeByPath(path.dirname(nodePath))
-        let nodeFileName = path.basename(nodePath)
-
-        if (!parentNode) return
-        delete parentNode!.children[nodeFileName]
-
-        return parentNode
-    }
-
-    castNodeData(node: FSTreeNode) {
-        if (node.fileType === RecognizedFileType.yaml) {
-            node.data = yaml.load(fs.readFileSync(node.filePath, 'utf-8'))
-        } else if (node.fileType === RecognizedFileType.md) {
-            let data = matter(fs.readFileSync(node.filePath, 'utf-8'))
-            data.content = md.render(data.content)
-            node.data = data
-        }
-    }
-}
-
-class RenderController {
+export class Ploceus {
     rootPath: string
     distPath: string
-    private timer?: NodeJS.Timeout
-    private taskQueue: FSTreeNode[] = []
-    private taskMap: { [key: string]: number } = {}
-    private templateMap: { [key: string]: FSTreeNode[] } = {}
-
-    constructor(rootPath: string, distPath: string) {
-        this.distPath = distPath
-        this.rootPath = rootPath
-    }
-
-    feed(node: FSTreeNode) {
-        if (this.timer) clearTimeout(this.timer)
-
-        this.taskQueue.push(node)
-        this.taskMap[node.filePath] = this.taskQueue.length - 1
-        this.timer = setTimeout(() => { this.renderAll() }, 100);
-    }
-
-    castRenderData(node: FSTreeNode) {
-        return Object.keys(node.children)
-            .reduce((obj: any, v: string) => {
-                if (node.children[v].fileType === RecognizedFileType.dir) {
-                    obj[v] = this.castRenderData(node.children[v])
-                } else {
-                    if (node.children[v].data) obj[v] = node.children[v].data
-                }
-                return obj
-            }, {})
-    }
-
-    render(node: FSTreeNode) {
-        let data = this.castRenderData(node)
-        const templateName = data['conf.yaml']['template']
-
-        // Register template - node relation
-        if (!this.templateMap[templateName]) this.templateMap[templateName] = []
-        let nodeInList = this.templateMap[templateName]
-            .reduce((r, v) => r || v.filePath === node.filePath, false)
-        if (!nodeInList) this.templateMap[templateName].push(node)
-
-        // Render to file
-        const outFilePath = path.resolve(
-            this.distPath,
-            path.relative(this.rootPath, node.filePath),
-            'index.html')
-
-        console.log(data)
-        // more render
-    }
-
-    renderAll() {
-        this.taskQueue.forEach((v, i) => {
-            if (this.taskMap[v.filePath] !== i) return
-
-            let isRenderAnchor = Object
-                .keys(v.children)
-                .includes("conf.yaml")
-
-            if (!isRenderAnchor) return
-
-            this.render(v)
-
-            process.exit()
-        })
-    }
-}
-
-export class FileTreeBuilder {
-    rootPath: string
+    globalData: any = {}
     renderController: RenderController
 
     private fsTree: FSTree
 
     constructor(rootPath: string) {
         this.rootPath = path.resolve(rootPath)
-        this.fsTree = new FSTree(this.rootPath)
-        this.renderController = new RenderController(
-            this.rootPath,
-            path.resolve(this.rootPath, "../dist"))
+        this.distPath = path.resolve(this.rootPath, "dist")
+
+        this.fsTree = new FSTree(this)
+        this.renderController = new RenderController(this)
 
         chokidar.watch(this.rootPath).on("all", (event, filePath) => {
             if (filePath == this.rootPath) return
+
+            const basedir = path
+                .relative(this.rootPath, filePath)
+                .split(path.sep)[0]
+
+            const isContent = basedir === "content"
+            const isTemplate = basedir === "template"
 
             let node: FSTreeNode | undefined
 
             if (event === "addDir" || event == "add") {
                 node = this.fsTree.addNodeByPath(filePath)
-                if (node) this.fsTree.castNodeData(node)
+                if (node && isContent) this.fsTree.castNodeData(node)
+
+                if (node) {
+                    this.fsTree.castNodeData(node)
+                    const nodeBaseName = path.basename(filePath)
+                    if (["theme.yaml", "site.yaml"].includes(nodeBaseName)) {
+                        this.globalData[nodeBaseName] = node.data
+                    }
+                }
             }
 
             if (event === "change") {
                 node = this.fsTree.findNodeByPath(filePath)
-                if (node) this.fsTree.castNodeData(node)
+                if (node && isContent) this.fsTree.castNodeData(node)
+
+                if (node) {
+                    const nodeBaseName = path.basename(filePath)
+                    if (["theme.yaml", "site.yaml"].includes(nodeBaseName)) {
+                        this.globalData[nodeBaseName] = node.data
+                    }
+                }
             }
 
             if (event === "unlink" || event == "unlinkDir") {
                 node = this.fsTree.removeNodeByPath(filePath)
+                this.renderController.deleteTemplateMapNode(filePath)
             }
 
-            while (node) {
+            // render content node
+            while (node && isContent) {
                 this.renderController.feed(node)
                 node = node.parent
             }
+
+            // render template node
+            if (isTemplate) {
+                if (path.dirname(filePath) === "template") {
+                    this.renderController.renderTemplate(path.basename(filePath))
+                } else if (path.dirname(filePath) === "components") {
+                    this.renderController.renderTemplate()
+                }
+            }
         })
+    }
+
+    findTemplateNode(templateName: string): FSTreeNode {
+        let templateNode = this.fsTree
+            .findNodeByPath(
+                path.resolve(this.rootPath, "theme", "template", templateName))
+
+        if (!templateNode) throw new Error("No template found")
+
+        return templateNode
     }
 }

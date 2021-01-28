@@ -1,3 +1,5 @@
-import { FileTreeBuilder } from "./core/index"
+import fs from "fs"
+import { Ploceus } from "./core/index"
 
-let tree = new FileTreeBuilder("/Users/yiqinzhao/Desktop/coden/yiqinzhao-src-v5/content")
+fs.rmSync("/Users/yiqinzhao/Desktop/coden/yiqinzhao-src-v5/dist", { recursive: true, force: true })
+let tree = new Ploceus("/Users/yiqinzhao/Desktop/coden/yiqinzhao-src-v5")
