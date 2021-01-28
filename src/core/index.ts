@@ -116,16 +116,24 @@ class FSTree {
 }
 
 class RenderController {
-    taskQueue: FSTreeNode[] = []
-    taskMap: { [key: string]: number } = {}
+    rootPath: string
+    distPath: string
     private timer?: NodeJS.Timeout
+    private taskQueue: FSTreeNode[] = []
+    private taskMap: { [key: string]: number } = {}
+    private templateMap: { [key: string]: FSTreeNode[] } = {}
+
+    constructor(rootPath: string, distPath: string) {
+        this.distPath = distPath
+        this.rootPath = rootPath
+    }
 
     feed(node: FSTreeNode) {
         if (this.timer) clearTimeout(this.timer)
 
         this.taskQueue.push(node)
         this.taskMap[node.filePath] = this.taskQueue.length - 1
-        this.timer = setTimeout(() => { this.render() }, 100);
+        this.timer = setTimeout(() => { this.renderAll() }, 100);
     }
 
     castRenderData(node: FSTreeNode) {
@@ -140,7 +148,27 @@ class RenderController {
             }, {})
     }
 
-    render() {
+    render(node: FSTreeNode) {
+        let data = this.castRenderData(node)
+        const templateName = data['conf.yaml']['template']
+
+        // Register template - node relation
+        if (!this.templateMap[templateName]) this.templateMap[templateName] = []
+        let nodeInList = this.templateMap[templateName]
+            .reduce((r, v) => r || v.filePath === node.filePath, false)
+        if (!nodeInList) this.templateMap[templateName].push(node)
+
+        // Render to file
+        const outFilePath = path.resolve(
+            this.distPath,
+            path.relative(this.rootPath, node.filePath),
+            'index.html')
+
+        console.log(data)
+        // more render
+    }
+
+    renderAll() {
         this.taskQueue.forEach((v, i) => {
             if (this.taskMap[v.filePath] !== i) return
 
@@ -150,10 +178,8 @@ class RenderController {
 
             if (!isRenderAnchor) return
 
-            // console.log(util.inspect(v, { depth: null }))
-            let data = this.castRenderData(v)
+            this.render(v)
 
-            console.log(data)
             process.exit()
         })
     }
@@ -168,7 +194,9 @@ export class FileTreeBuilder {
     constructor(rootPath: string) {
         this.rootPath = path.resolve(rootPath)
         this.fsTree = new FSTree(this.rootPath)
-        this.renderController = new RenderController()
+        this.renderController = new RenderController(
+            this.rootPath,
+            path.resolve(this.rootPath, "../dist"))
 
         chokidar.watch(this.rootPath).on("all", (event, filePath) => {
             if (filePath == this.rootPath) return
