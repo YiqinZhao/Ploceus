@@ -79,12 +79,11 @@ export class RenderController {
             this.controller.distPath,
             relPath)
 
-        fs.mkdirSync(outFolder, { recursive: true })
-
         // copy assets
         Object.keys(node.children).forEach(v => {
             const child = node.children[v]
             if (child.data?.copy) {
+                fs.mkdirSync(outFolder, { recursive: true })
                 fs.copyFileSync(
                     child.filePath,
                     path.resolve(outFolder, child.baseName))
@@ -110,8 +109,8 @@ export class RenderController {
 
 
         // Render to file
-        const outFilePath = path.resolve(outFolder, "index.html")
-
+        const prefix = data["conf.yaml"].trimPrefix ? ".." : "."
+        const outFilePath = path.resolve(outFolder, prefix, "index.html")
         const templateNode = this.controller.findTemplateNode(templateName)
 
         // Invoke renderer specific function
@@ -119,9 +118,9 @@ export class RenderController {
             if (err) {
                 consola.error(data.meta.filePath)
                 console.error(err);
-                process.exit()
             }
 
+            fs.mkdirSync(path.dirname(outFilePath), { recursive: true })
             fs.writeFileSync(outFilePath, minify(html, { minifyCSS: true, minifyJS: true, collapseWhitespace: true }))
 
             consola.success(data.meta.filePath)
@@ -156,5 +155,6 @@ export class RenderController {
             if (this.taskMap[v.filePath] !== i) return
             this.render(v)
         })
+        this.taskQueue = []
     }
 }

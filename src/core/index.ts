@@ -50,7 +50,7 @@ export class Ploceus {
 
 
             // render content node
-            while (node && (isContent || isTemplate) && node.fileType === RecognizedFileType.dir) {
+            while (node && (isContent || isTemplate)) {
                 this.renderController.feed(node)
                 node = node.parent
             }
@@ -58,9 +58,10 @@ export class Ploceus {
 
             // render template node
             if (isTemplate) {
-                if (path.dirname(filePath) === "template") {
+                const parentDir = path.dirname(filePath).split(path.sep).pop()
+                if (parentDir === "template") {
                     this.renderController.renderTemplate(path.basename(filePath))
-                } else if (path.dirname(filePath) === "components") {
+                } else if (parentDir === "components") {
                     this.renderController.renderTemplate()
                 }
             }
