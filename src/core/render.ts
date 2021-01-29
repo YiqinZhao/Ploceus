@@ -35,7 +35,7 @@ export class RenderController {
                     nodes.forEach(v => { this.render(v) })
                 })
         } else {
-            this.templateMap[templateName].forEach(v => {
+            this.templateMap[templateName]?.forEach(v => {
                 this.render(v)
             })
         }
@@ -118,6 +118,7 @@ export class RenderController {
             if (err) {
                 consola.error(data.meta.filePath)
                 console.error(err);
+                return
             }
 
             fs.mkdirSync(path.dirname(outFilePath), { recursive: true })
@@ -129,25 +130,29 @@ export class RenderController {
     }
 
     doEjsRendering(templatePath: string, data: any, callback: Function) {
-        ejs.renderFile(templatePath, {
-            data
-        }, {
-            context: {
-                global: this.controller.globalData,
-                utils: {
-                    dayjs
+        try {
+            ejs.renderFile(templatePath, {
+                data
+            }, {
+                context: {
+                    global: this.controller.globalData,
+                    utils: {
+                        dayjs
+                    }
                 }
-            }
-        }, (err, html) => {
-            let output = html
-            if (html && html.includes('<!-- StyleSlot -->')) {
-                const styleBundle = html.match(/<style[^>]*>([^<]+)<\/style>/g)?.join('') || ''
-                output = html.replace(/<style[^>]*>([^<]+)<\/style>/g, '')
-                output = output.replace(/\<\!-- StyleSlot --\>/g, styleBundle)
-            }
+            }, (err, html) => {
+                let output = html
+                if (html && html.includes('<!-- StyleSlot -->')) {
+                    const styleBundle = html.match(/<style[^>]*>([^<]+)<\/style>/g)?.join('') || ''
+                    output = html.replace(/<style[^>]*>([^<]+)<\/style>/g, '')
+                    output = output.replace(/\<\!-- StyleSlot --\>/g, styleBundle)
+                }
 
-            callback(err, output)
-        })
+                callback(err, output)
+            })
+        } catch (error) {
+            callback(error, undefined)
+        }
     }
 
     renderAll() {
