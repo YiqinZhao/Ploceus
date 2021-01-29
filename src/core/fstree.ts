@@ -26,12 +26,14 @@ const md: any = markdownIt({
 
 export enum RecognizedFileType {
     dir, yaml, md,
-    png, jpg, jpeg, bmp,
+    png, jpg, jpeg, bmp, svg,
+    pdf, html,
     other
 }
 
 export interface FSTreeNode {
     data?: any
+    relPath: string
     filePath: string
     baseName: string
     fileType: RecognizedFileType
@@ -47,6 +49,7 @@ export class FSTree {
     constructor(controller: Ploceus) {
         this.controller = controller
         this.rootNode = {
+            relPath: path.relative(this.controller.rootPath, this.controller.rootPath),
             baseName: path.basename(this.controller.rootPath),
             filePath: this.controller.rootPath,
             fileType: RecognizedFileType.dir,
@@ -81,6 +84,7 @@ export class FSTree {
         }
 
         let node: FSTreeNode = {
+            relPath: path.relative(this.controller.rootPath, nodePath),
             baseName: path.basename(nodePath),
             filePath: nodePath,
             fileType: nodeType,
@@ -115,6 +119,28 @@ export class FSTree {
             let data = matter(fs.readFileSync(node.filePath, 'utf-8'))
             data.content = md.render(data.content)
             node.data = data
+        } else if (
+            node.fileType === RecognizedFileType.jpeg
+            || node.fileType === RecognizedFileType.jpg
+            || node.fileType === RecognizedFileType.png
+            || node.fileType === RecognizedFileType.bmp
+            || node.fileType === RecognizedFileType.svg
+            || node.fileType === RecognizedFileType.pdf
+            || node.fileType === RecognizedFileType.html
+            || (
+                node.relPath.split(path.sep)[1] === "assets"
+                && node.fileType !== RecognizedFileType.dir
+            )
+        ) {
+            node.data = {
+                copy: true,
+                url: path.relative(
+                    path.resolve(
+                        this.controller.rootPath,
+                        "content"
+                    ),
+                    node.filePath)
+            }
         }
     }
 }

@@ -2,7 +2,7 @@ import util from "util"
 import path from "path"
 import chokidar from "chokidar"
 import { RenderController } from "./render"
-import { FSTree, FSTreeNode } from "./fstree"
+import { FSTree, FSTreeNode, RecognizedFileType } from "./fstree"
 
 export class Ploceus {
     rootPath: string
@@ -27,7 +27,9 @@ export class Ploceus {
                 .split(path.sep)[0]
 
             const isContent = basedir === "content"
-            const isTemplate = basedir === "template"
+            const isTemplate = basedir === "theme"
+
+            if (!(isContent || isTemplate)) return
 
             let node: FSTreeNode | undefined
 
@@ -48,7 +50,7 @@ export class Ploceus {
 
 
             // render content node
-            while (node && isContent) {
+            while (node && (isContent || isTemplate) && node.fileType === RecognizedFileType.dir) {
                 this.renderController.feed(node)
                 node = node.parent
             }

@@ -69,6 +69,36 @@ export class RenderController {
     }
 
     render(node: FSTreeNode) {
+        const relPath = path
+            .relative(this.controller.rootPath, node.filePath)
+            .split(path.sep)
+            .slice(1)
+            .join(path.sep)
+
+        const outFolder = path.resolve(
+            this.controller.distPath,
+            relPath)
+
+        fs.mkdirSync(outFolder, { recursive: true })
+
+        // copy assets
+        Object.keys(node.children).forEach(v => {
+            const child = node.children[v]
+            if (child.data?.copy) {
+                fs.copyFileSync(
+                    child.filePath,
+                    path.resolve(outFolder, child.baseName))
+            }
+        })
+
+        // render html page
+        let isRenderAnchor = Object
+            .keys(node.children)
+            .includes("conf.yaml")
+
+        if (!isRenderAnchor) return
+
+
         let data = this.castRenderData(node)
         const templateName = data['conf.yaml']['template']
 
@@ -78,18 +108,9 @@ export class RenderController {
             .reduce((r, v) => r || v.filePath === node.filePath, false)
         if (!nodeInList) this.templateMap[templateName].push(node)
 
-        const relPath = path
-            .relative(this.controller.rootPath, node.filePath)
-            .split(path.sep)
-            .slice(1)
-            .join(path.sep)
-
 
         // Render to file
-        const outFilePath = path.resolve(
-            this.controller.distPath,
-            relPath,
-            'index.html')
+        const outFilePath = path.resolve(outFolder, "index.html")
 
         const templateNode = this.controller.findTemplateNode(templateName)
 
@@ -101,10 +122,10 @@ export class RenderController {
                 process.exit()
             }
 
-            fs.mkdirSync(path.dirname(outFilePath), { recursive: true })
-            fs.writeFileSync(outFilePath, minify(html, { minifyCSS: true, minifyJS: true }))
+            fs.writeFileSync(outFilePath, minify(html, { minifyCSS: true, minifyJS: true, collapseWhitespace: true }))
 
             consola.success(data.meta.filePath)
+            // process.exit()
         })
     }
 
@@ -127,36 +148,12 @@ export class RenderController {
             }
 
             callback(err, output)
-            // try {
-            //     // err ? consola.error("render", templatePath)
-            //     //     : consola.success("render", data.meta.filePath)
-
-            //     // // Move all style to the front style slot
-            //     // let output = html
-            //     // if (html.includes('<!-- StyleSlot -->')) {
-            //     //     const styleBundle = html.match(/<style[^>]*>([^<]+)<\/style>/g)?.join('') || ''
-            //     //     output = html.replace(/<style[^>]*>([^<]+)<\/style>/g, '')
-            //     //     output = output.replace(/\<\!-- StyleSlot --\>/g, styleBundle)
-            //     // }
-
-            //     callback(err, output)
-            // } catch (err) {
-            //     consola.error("render", err.message)
-            //     callback(err, html)
-            // }
         })
     }
 
     renderAll() {
         this.taskQueue.forEach((v, i) => {
             if (this.taskMap[v.filePath] !== i) return
-
-            let isRenderAnchor = Object
-                .keys(v.children)
-                .includes("conf.yaml")
-
-            if (!isRenderAnchor) return
-
             this.render(v)
         })
     }
