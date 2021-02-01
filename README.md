@@ -2,11 +2,11 @@
 
 > Ploceus (weaver birds) are named for their elaborately woven nests. --- [Wikipedia](https://en.wikipedia.org/wiki/Ploceidae)
 
-**Ploceus** is a static site generator that helps you focus on content writing 📖 and style 💄 changing in a **easy & rapid** way.
+**Ploceus** is a static site generator that helps you focus on both content writing 📖 and UI styling 💄 in an **easy & rapid** way. **Ploceus** generates site from structured content and theme files which can be built from scratch or from existing documents.
 
 ## Usage
 
-Install it first
+**Installation**
 
 ```bash
 npm install -g ploceus
@@ -14,20 +14,20 @@ npm install -g ploceus
 yarn global add ploceus
 ```
 
-To start build your website, you need to create a work space folder that contains `content` and `theme`. Check [here](https://github.com/YiqinZhao/ploceus-example) for a simple example, it could also be your site template.
+Two folders, `content` and `theme`, need to be created in order to start building your website. Check [here](https://github.com/YiqinZhao/ploceus-example) for a simple example.
 
-Check out [project structure](#project-structure) for detailed file organization. Then, start the development server and create you site!
+Use following command to start creating your site with build-in development server!
 
 ```
 cd <PROJECT_NAME>
-ploceus dev
+ploceus dev .
 ```
 
-Finally, when you are going to build and deploy the site, use:
+After you finished development, use following commands to generate site files:
 
 ```bash
-ploceus build -p
 # -p stands for production
+ploceus build -p .
 ```
 
 You should see your site been built in the `dist` folder.
@@ -37,15 +37,13 @@ You should see your site been built in the `dist` folder.
 ```
 $ ploceus build -h
 
-build a site.
+Build a site.
 
 USAGE
-  $ ploceus build [CONTENT] [THEME] [DIST]
+  $ ploceus build [PATH]
 
 ARGUMENTS
-  CONTENT  [default: ./content] content folder
-  THEME    [default: ./theme] theme folder
-  DIST     [default: ./dist] dist folder
+  PATH  [default: .] source files path
 
 OPTIONS
   -h, --help        show CLI help
@@ -57,15 +55,13 @@ EXAMPLE
 
 ```
 $ ploceus dev -h
-watch file changes and rebuild. Also start a dev server.
+Start development mode.
 
 USAGE
-  $ ploceus dev [CONTENT] [THEME] [DIST]
+  $ ploceus dev [PATH]
 
 ARGUMENTS
-  CONTENT  [default: ./content] content folder
-  THEME    [default: ./theme] theme folder
-  DIST     [default: ./dist] dist folder
+  PATH  [default: .] source files path
 
 OPTIONS
   -h, --help  show CLI help
@@ -76,21 +72,13 @@ EXAMPLE
 
 ## API
 
-You can use Ploceus as a normal npm package as well.
+You can use Ploceus programmatically as well.
 
 ```js
 const { Ploceus } = require('ploceus')
 
-const p = new Ploceus({
-  contentPath: './content',
-  themePath: './theme',
-  distPath: './dist',
-  production: false
+new Ploceus(rootPath, {
+  dev: true, // indicates the development mode, otherwise, the build mode
+  production: false // production mode enables page minify optimization
 })
-
-p.build()
-
-// Watch will only not start a dev server like the command line behavior!
-// If you need it, we recommend you use a 3rd package like the browser-sync
-p.watch()
 ```
