@@ -1,6 +1,7 @@
 import fs from "fs"
 import path from "path"
 import yaml from "js-yaml"
+import CryptoJS from "crypto-js"
 import matter from "gray-matter"
 
 import { Ploceus } from "."
@@ -117,7 +118,24 @@ export class FSTree {
             node.data = yaml.load(fs.readFileSync(node.filePath, 'utf-8'))
         } else if (node.fileType === RecognizedFileType.md) {
             let data = matter(fs.readFileSync(node.filePath, 'utf-8'))
-            data.content = md.render(data.content)
+            data.content = (md.render(data.content) as string)
+                .replace(/-s-(.*?)-s-/gms, v => {
+                    const secret = data.data.password
+                    // Single line
+                    if (v.split('\n').length === 1) {
+                        const encrypted = CryptoJS.AES
+                            .encrypt(v.split('-s-').filter(v => v.length).join('-'), secret)
+                            .toString()
+
+                        return `<span class="encrypted">${encrypted}</span>`
+                    } else {
+                        const encrypted = CryptoJS.AES
+                            .encrypt(v.split('\n').slice(1, -1).join('-'), secret)
+                            .toString()
+
+                        return `<div class="encrypted">${encrypted}</div>`
+                    }
+                })
             node.data = data
         } else if (
             node.fileType === RecognizedFileType.jpeg
