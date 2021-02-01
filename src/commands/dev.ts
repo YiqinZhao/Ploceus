@@ -38,6 +38,6 @@ export default class Dev extends Command {
             open: false
         })
 
-        consola.ready(`Server started at ${bsInstance.getOption('port')}`)
+        consola.ready(`server started at ${bsInstance.getOption('port')}`)
     }
 }

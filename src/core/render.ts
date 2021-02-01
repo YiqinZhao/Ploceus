@@ -85,10 +85,10 @@ export class RenderController {
         Object.keys(node.children).forEach(v => {
             const child = node.children[v]
             if (child.data?.copy) {
+                const outFile = path.resolve(outFolder, child.baseName)
                 fs.mkdirSync(outFolder, { recursive: true })
-                fs.copyFileSync(
-                    child.filePath,
-                    path.resolve(outFolder, child.baseName))
+                fs.copyFileSync(child.filePath, outFile)
+                consola.success(outFile)
             }
         })
 
@@ -136,7 +136,6 @@ export class RenderController {
             )
 
             consola.success(outFilePath)
-            // process.exit()
         })
     }
 
