@@ -36,7 +36,7 @@ export class RenderController {
                 })
         } else {
             this.templateMap[templateName]?.forEach(v => {
-                this.render(v)
+                this.render(v, false)
             })
         }
     }
@@ -70,18 +70,29 @@ export class RenderController {
             })
     }
 
-    render(node: FSTreeNode) {
+    render(node: FSTreeNode, copyAssets: boolean = true) {
         const relPath = path
             .relative(this.controller.rootPath, node.filePath)
             .split(path.sep)
             .slice(1)
             .join(path.sep)
 
+        if (node.data?.copy) {
+            const copyDest = path
+                .resolve(this.controller.distPath, relPath)
+            fs.mkdirSync(path.dirname(copyDest), { recursive: true })
+            fs.copyFileSync(node.filePath, copyDest)
+            consola.success(copyDest)
+        }
+
+        if (node.fileType !== RecognizedFileType.dir) return
+
         const outFolder = path
             .resolve(this.controller.distPath, relPath)
 
         // copy assets
         Object.values(node.children).forEach(child => {
+            if (!copyAssets) return
             if (child.data?.copy) {
                 const outFile = path.resolve(outFolder, child.baseName)
                 fs.mkdirSync(outFolder, { recursive: true })
@@ -107,7 +118,8 @@ export class RenderController {
         if (!this.templateMap[templateName]) this.templateMap[templateName] = []
         let nodeInList = this.templateMap[templateName]
             .reduce((r, v) => r || v.filePath === node.filePath, false)
-        if (!nodeInList) this.templateMap[templateName].push(node)
+        if (!nodeInList && node.fileType === RecognizedFileType.dir)
+            this.templateMap[templateName].push(node)
 
 
         // Render to file

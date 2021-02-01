@@ -57,6 +57,7 @@ export class Ploceus {
             // render content node
             while (node && (isContent || isTemplate)) {
                 this.renderController.feed(node)
+                if (node.data?.copy) break
                 node = node.parent
             }
 
