@@ -1,18 +1,24 @@
-import util from "util"
 import path from "path"
 import chokidar from "chokidar"
 import { RenderController } from "./render"
-import { FSTree, FSTreeNode, RecognizedFileType } from "./fstree"
+import { FSTree, FSTreeNode } from "./fstree"
+
+interface PloceusOptions {
+    dev?: boolean
+    production: boolean
+}
 
 export class Ploceus {
     rootPath: string
     distPath: string
     globalData: any = {}
+    options: PloceusOptions
     renderController: RenderController
 
     private fsTree: FSTree
 
-    constructor(rootPath: string) {
+    constructor(rootPath: string, options: PloceusOptions) {
+        this.options = options
         this.rootPath = path.resolve(rootPath)
         this.distPath = path.resolve(this.rootPath, "dist")
 

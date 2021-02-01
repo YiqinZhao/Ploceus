@@ -126,7 +126,14 @@ export class RenderController {
             }
 
             fs.mkdirSync(path.dirname(outFilePath), { recursive: true })
-            fs.writeFileSync(outFilePath, minify(html, { minifyCSS: true, minifyJS: true, collapseWhitespace: true }))
+
+
+            fs.writeFileSync(
+                outFilePath,
+                this.controller.options.production
+                    ? minify(html, { minifyCSS: true, minifyJS: true, collapseWhitespace: true })
+                    : html
+            )
 
             consola.success(outFilePath)
             // process.exit()
@@ -165,5 +172,9 @@ export class RenderController {
             this.render(v)
         })
         this.taskQueue = []
+
+        if (!this.controller.options.dev) {
+            process.exit()
+        }
     }
 }
