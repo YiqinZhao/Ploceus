@@ -54,13 +54,11 @@ export class Ploceus {
                 this.renderController.deleteTemplateMapNode(filePath)
             }
 
-
             // render content node
             while (node && (isContent || isTemplate)) {
                 this.renderController.feed(node)
                 node = node.parent
             }
-
 
             // render template node
             if (isTemplate) {

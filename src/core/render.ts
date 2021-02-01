@@ -77,13 +77,11 @@ export class RenderController {
             .slice(1)
             .join(path.sep)
 
-        const outFolder = path.resolve(
-            this.controller.distPath,
-            relPath)
+        const outFolder = path
+            .resolve(this.controller.distPath, relPath)
 
         // copy assets
-        Object.keys(node.children).forEach(v => {
-            const child = node.children[v]
+        Object.values(node.children).forEach(child => {
             if (child.data?.copy) {
                 const outFile = path.resolve(outFolder, child.baseName)
                 fs.mkdirSync(outFolder, { recursive: true })
@@ -167,10 +165,12 @@ export class RenderController {
 
     renderAll() {
         this.taskQueue.forEach((v, i) => {
+            // console.log(v.filePath, this.taskMap[v.filePath], i)
             if (this.taskMap[v.filePath] !== i) return
             this.render(v)
         })
         this.taskQueue = []
+        this.taskMap = {}
 
         if (!this.controller.options.dev) {
             process.exit()
