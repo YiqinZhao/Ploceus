@@ -63,7 +63,9 @@ export class RenderController {
             }, {
                 meta: {
                     basename: node.baseName,
-                    filePath: node.filePath
+                    filePath: node.filePath,
+                    relPath: node
+                        .relPath.split(path.sep).slice(1).join("/")
                 }
             })
     }
@@ -99,7 +101,9 @@ export class RenderController {
 
 
         let data = this.castRenderData(node)
-        const templateName = data['conf.yaml']['template']
+        const templateName = data['conf.yaml']?.template
+
+        if (!templateName) return
 
         // Register template - node relation
         if (!this.templateMap[templateName]) this.templateMap[templateName] = []
@@ -124,7 +128,7 @@ export class RenderController {
             fs.mkdirSync(path.dirname(outFilePath), { recursive: true })
             fs.writeFileSync(outFilePath, minify(html, { minifyCSS: true, minifyJS: true, collapseWhitespace: true }))
 
-            consola.success(data.meta.filePath)
+            consola.success(outFilePath)
             // process.exit()
         })
     }
