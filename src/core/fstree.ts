@@ -23,6 +23,7 @@ const md: any = markdownIt({
     }
 }).use(require('@iktakahiro/markdown-it-katex'))
     .use(require('markdown-it-anchor'))
+    .use(require('markdown-it-emoji'))
 
 
 export enum RecognizedFileType {
