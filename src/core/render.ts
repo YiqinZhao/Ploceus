@@ -24,7 +24,10 @@ export class RenderController {
 
         this.taskQueue.push(node)
         this.taskMap[node.filePath] = this.taskQueue.length - 1
-        this.timer = setTimeout(() => { this.renderAll() }, 100);
+        this.timer = setTimeout(
+            () => { this.renderAll() },
+            this.controller.options.dev ? 100 : 1000
+        );
     }
 
     renderTemplate(templateName?: string) {
