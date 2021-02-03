@@ -26,7 +26,7 @@ export class RenderController {
         this.taskMap[node.filePath] = this.taskQueue.length - 1
         this.timer = setTimeout(
             () => { this.renderAll() },
-            this.controller.options.dev ? 100 : 1000
+            this.controller.options.dev ? 100 : 3000
         );
     }
 
