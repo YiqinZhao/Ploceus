@@ -14,21 +14,21 @@ export default class Dev extends Command {
     ]
 
     static flags = {
+        ["fast-boot"]: flags.boolean({ char: 'f', default: false }),
         help: flags.help({ char: 'h' })
     }
 
     static args = [
-        { name: 'path', description: 'source files path', default: '.' },
+        { name: 'path', description: 'source files path', default: '.' }
     ]
 
     async run() {
-        const { args } = this.parse(Dev)
+        const { args, flags } = this.parse(Dev)
 
         const sourcePath = path.resolve(args.path)
         const distPath = path.resolve(sourcePath, "dist")
         fs.rmSync(distPath, { recursive: true, force: true })
-
-        new Ploceus(sourcePath, { dev: true, production: false })
+        fs.mkdirSync(distPath, { recursive: true })
 
         const bsInstance = bs.init({
             server: distPath,
@@ -38,6 +38,9 @@ export default class Dev extends Command {
             open: false
         })
 
-        consola.ready(`server started at ${bsInstance.getOption('port')}`)
+        new Ploceus(sourcePath, {
+            dev: true, production: false,
+            bsInstance, fastBoot: flags["fast-boot"]
+        })
     }
 }

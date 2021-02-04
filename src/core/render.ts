@@ -15,6 +15,8 @@ export class RenderController {
 
     private controller: Ploceus
 
+    booting: boolean = true
+
     constructor(controller: Ploceus) {
         this.controller = controller
     }
@@ -26,7 +28,9 @@ export class RenderController {
         this.taskMap[node.filePath] = this.taskQueue.length - 1
         this.timer = setTimeout(
             () => { this.renderAll() },
-            this.controller.options.dev ? 100 : 3000
+            !this.controller.options.dev
+                || (this.booting && !this.controller.options.fastBoot)
+                ? 3000 : 100
         );
     }
 
@@ -187,7 +191,13 @@ export class RenderController {
         this.taskQueue = []
         this.taskMap = {}
 
+        if (this.booting) {
+            this.booting = false
+            consola.ready(`development server started at http://localhost:${this.controller.options.bsInstance?.getOption("port")}`)
+        }
+
         if (!this.controller.options.dev) {
+            consola.success("generation successfully finished")
             process.exit()
         }
     }

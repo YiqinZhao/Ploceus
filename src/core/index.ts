@@ -1,11 +1,14 @@
 import path from "path"
+import bs from 'browser-sync'
 import chokidar from "chokidar"
 import { RenderController } from "./render"
 import { FSTree, FSTreeNode } from "./fstree"
 
 interface PloceusOptions {
-    dev?: boolean
-    production: boolean
+    dev?: boolean,
+    fastBoot: boolean,
+    production: boolean,
+    bsInstance?: bs.BrowserSyncInstance
 }
 
 export class Ploceus {
