@@ -45,25 +45,27 @@ export class FSTreeNode {
     data?: RenderingData
     children: { [key: string]: FSTreeNode } = {}
 
-    constructor(nodePath: string, rootNode: FSTreeNode) {
+    constructor(nodePath: string, rootNode?: FSTreeNode) {
         this.nodePath = nodePath
         this.dirName = path.dirname(nodePath)
         this.baseName = path.basename(nodePath)
-        this.relPath = path.relative(rootNode.dirName, nodePath)
+        this.relPath = rootNode
+            ? path.relative(rootNode.nodePath, nodePath)
+            : '.'
 
         const ext = path.extname(this.baseName)
 
         if (fs.lstatSync(nodePath).isDirectory()) {
             this.type = "dir"
-        } else if (ext === "yaml" || ext === "yml") {
+        } else if (ext === ".yaml" || ext === ".yml") {
             this.type = "yaml"
-        } else if (ext === "md" || ext === "markdown") {
+        } else if (ext === ".md" || ext === ".markdown") {
             this.type = "md"
         } else if (
             this.relPath.split(path.sep).includes("assets")
-            || ["png", "jpg", "jpeg", "bmp", "svg", "pdf"].includes(ext)) {
+            || [".png", ".jpg", ".jpeg", ".bmp", ".svg", ".pdf"].includes(ext)) {
             this.type = "asset"
-        } else if (ext === "ejs") {
+        } else if (ext === ".ejs") {
             this.type = "template"
         } else {
             this.type = "other"
@@ -71,17 +73,11 @@ export class FSTreeNode {
     }
 
     cast() {
-        const meta = {
-            meta: {
-                absPath: this.relPath
-            }
-        }
-
         let data: any
 
         if (this.type === "md") {
-            let content = matter(fs.readFileSync(this.nodePath, 'utf-8'))
-            data = (md.render(content) as string)
+            data = matter(fs.readFileSync(this.nodePath, 'utf-8'))
+            data.content = (md.render(data.content) as string)
                 .replace(/-s-(.*?)-s-/gms, v => {
                     const secret = data.data.password
                     // Single line
@@ -103,16 +99,17 @@ export class FSTreeNode {
             data = yaml.load(fs.readFileSync(this.nodePath, 'utf-8'))
         }
 
-        this.data = { ...meta, ...data }
+        this.data = data
     }
 }
 
 export class FSTree {
-    rootNode?: FSTreeNode
+    rootNode: FSTreeNode
     private controller: Ploceus
 
     constructor(controller: Ploceus) {
         this.controller = controller
+        this.rootNode = new FSTreeNode(controller.rootPath)
     }
 
     findNodesOnPath(nodePath: string): FSTreeNode[] {
@@ -126,7 +123,7 @@ export class FSTree {
 
         while (node) {
             result.push(node)
-            if (i >= rel.length) break
+            if (i > rel.length) break
             node = node.children[rel[i++]]
         }
 
@@ -134,12 +131,13 @@ export class FSTree {
     }
 
     addNodeAt(fatherNode: FSTreeNode, nodeName: string): FSTreeNode {
-        const node = fatherNode.children[nodeName] = new FSTreeNode(
-            path.join(fatherNode.dirName, nodeName),
-            this.rootNode!)
+        let node = fatherNode.children[nodeName] = new FSTreeNode(
+            path.join(fatherNode.nodePath, nodeName),
+            this.rootNode)
 
         if (node.type === "template") {
             this.controller.templateMap[nodeName] = node
+            this.controller.templateRefs[nodeName] = []
         }
 
         return node

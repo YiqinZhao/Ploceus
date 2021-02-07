@@ -1,8 +1,9 @@
 import fs from "fs"
 import path from 'path'
+import yaml from "js-yaml"
 import consola from "consola"
 
-import { Ploceus } from '../core'
+import { Ploceus, SiteConfig } from '../core'
 import { Command, flags } from '@oclif/command'
 
 export default class Build extends Command {
@@ -23,15 +24,31 @@ export default class Build extends Command {
 
     async run() {
         const { args, flags } = this.parse(Build)
-
         const sourcePath = path.resolve(args.path)
-        fs.rmSync(path.resolve(sourcePath, "dist"), { recursive: true, force: true })
+        const siteConfPath = path.join(sourcePath, "site.yaml")
 
-        if (flags.production) this.log('Building site with production optimization.')
+        if (!fs.existsSync(siteConfPath)) {
+            consola.error("site.yaml not found")
+            process.exit(1)
+        }
+
+        let siteConfig = yaml.load(
+            fs.readFileSync(siteConfPath).toString()
+        ) as SiteConfig
+
+        fs.rmSync(
+            path.resolve(sourcePath, "dist"),
+            { recursive: true, force: true })
+
+        if (flags.production) {
+            consola.start("Building site with production optimization.")
+        }
+
         new Ploceus(sourcePath, {
-            production: flags.production
+            production: flags.production, siteConfig
         }).on("ready", () => {
             consola.success("generation successfully finished")
+            process.exit(0)
         })
     }
 }

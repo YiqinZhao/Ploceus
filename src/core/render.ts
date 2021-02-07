@@ -20,15 +20,24 @@ export class RenderController {
     }
 
     consume() {
-        this.taskQueue.forEach((v, i) => {
-            // console.log(v.filePath, this.taskMap[v.filePath], i)
+        this.taskQueue.reverse().forEach(v => {
             this.render(v)
         })
         this.taskQueue = []
+
+        if (this.controller.isBooting) {
+            this.controller.listeners.ready("ready")
+            this.controller.isBooting = false
+        }
     }
 
     castDataSeries(node: FSTreeNode): any {
-        return {
+        if (Array.isArray(node.data)) return node.data
+        else return {
+            meta: {
+                path: node.relPath,
+                baseName: node.baseName
+            },
             ...node.data,
             ...Object.keys(node.children)
                 .reduce((obj: any, v) => {
@@ -49,6 +58,7 @@ export class RenderController {
         if (node.type === "asset") {
             fs.mkdirSync(path.dirname(distPath), { recursive: true })
             fs.copyFileSync(node.nodePath, distPath)
+            consola.success("[Asset]", distPath)
             return
         }
 
@@ -57,39 +67,47 @@ export class RenderController {
             return
         }
 
-        const data = this.castDataSeries(node)
-        const templateNode = this.controller.templateMap[
-            node.data!["conf.yaml"].template
-        ]
+        if (!node.children["conf.yaml"]) return
 
+        const data = this.castDataSeries(node)
+        const templateNode = this.controller
+            .templateMap[data["conf.yaml"].template]
+
+        if (!(this.controller.templateRefs[templateNode.baseName]
+            .map(v => v.nodePath).includes(node.nodePath))) {
+            this.controller.templateRefs[templateNode.baseName].push(node)
+        }
 
         // Invoke renderer specific function
         this.doEjsRendering(
             templateNode.nodePath, data,
             (err: Error | undefined, html: string) => {
                 if (err) {
-                    consola.error(data.meta.filePath)
+                    consola.error(node.nodePath)
                     console.error(err);
                     return
                 }
 
-                fs.mkdirSync(path.dirname(distPath), { recursive: true })
+                fs.mkdirSync(distPath, { recursive: true })
 
-
+                const distFilePath = path.join(distPath, "index.html")
                 fs.writeFileSync(
-                    distPath,
+                    distFilePath,
                     this.controller.options.production
                         ? minify(html, { minifyCSS: true, minifyJS: true, collapseWhitespace: true })
                         : html
                 )
 
-                consola.success(distPath)
+                consola.success("[Page]", distFilePath)
             })
     }
 
     doEjsRendering(templatePath: string, data: any, callback: Function) {
         try {
             ejs.renderFile(templatePath, {
+                config: {
+                    site: this.controller.options.siteConfig
+                },
                 data
             }, {
                 context: {
