@@ -14,7 +14,6 @@ export default class Dev extends Command {
     ]
 
     static flags = {
-        ["fast-boot"]: flags.boolean({ char: 'f', default: false }),
         help: flags.help({ char: 'h' })
     }
 
@@ -23,7 +22,7 @@ export default class Dev extends Command {
     ]
 
     async run() {
-        const { args, flags } = this.parse(Dev)
+        const { args } = this.parse(Dev)
 
         const sourcePath = path.resolve(args.path)
         const distPath = path.resolve(sourcePath, "dist")
@@ -39,8 +38,11 @@ export default class Dev extends Command {
         })
 
         new Ploceus(sourcePath, {
-            dev: true, production: false,
-            bsInstance, fastBoot: flags["fast-boot"]
+            dev: true, production: false
+        }).on("ready", () => {
+            consola.ready(`development server started at http://localhost:${bsInstance.getOption("port")}`)
+        }).on("error", error => {
+            consola.error(error.message)
         })
     }
 }

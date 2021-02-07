@@ -1,5 +1,6 @@
 import fs from "fs"
 import path from 'path'
+import consola from "consola"
 
 import { Ploceus } from '../core'
 import { Command, flags } from '@oclif/command'
@@ -27,6 +28,10 @@ export default class Build extends Command {
         fs.rmSync(path.resolve(sourcePath, "dist"), { recursive: true, force: true })
 
         if (flags.production) this.log('Building site with production optimization.')
-        new Ploceus(sourcePath, { production: flags.production, fastBoot: false })
+        new Ploceus(sourcePath, {
+            production: flags.production
+        }).on("ready", () => {
+            consola.success("generation successfully finished")
+        })
     }
 }

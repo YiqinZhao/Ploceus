@@ -5,155 +5,86 @@ import dayjs from "dayjs"
 import { Ploceus } from "."
 import consola from "consola"
 import { minify } from "html-minifier"
-import { FSTreeNode, RecognizedFileType } from "./fstree"
+import { FSTreeNode } from "./fsutils"
 
 export class RenderController {
-    private timer?: NodeJS.Timeout
     private taskQueue: FSTreeNode[] = []
-    private taskMap: { [key: string]: number } = {}
-    private templateMap: { [key: string]: FSTreeNode[] } = {}
-
     private controller: Ploceus
-
-    booting: boolean = true
 
     constructor(controller: Ploceus) {
         this.controller = controller
     }
 
-    feed(node: FSTreeNode) {
-        if (this.timer) clearTimeout(this.timer)
-
-        this.taskQueue.push(node)
-        this.taskMap[node.filePath] = this.taskQueue.length - 1
-        this.timer = setTimeout(
-            () => { this.renderAll() },
-            !this.controller.options.dev
-                || (this.booting && !this.controller.options.fastBoot)
-                ? 3000 : 100
-        );
+    feed(nodes: FSTreeNode[]) {
+        this.taskQueue = this.taskQueue.concat(nodes)
     }
 
-    renderTemplate(templateName?: string) {
-        if (!templateName) {
-            Object
-                .values(this.templateMap)
-                .forEach(nodes => {
-                    nodes.forEach(v => { this.render(v) })
-                })
-        } else {
-            this.templateMap[templateName]?.forEach(v => {
-                this.render(v, false)
-            })
-        }
-    }
-
-    deleteTemplateMapNode(filePath: string) {
-        Object.keys(this.templateMap)
-            .forEach(k => {
-                this.templateMap[k] = this.templateMap[k]
-                    .filter(v => {
-                        v.filePath !== filePath
-                    })
-            })
-    }
-
-    castRenderData(node: FSTreeNode) {
-        return Object.keys(node.children)
-            .reduce((obj: any, v: string) => {
-                if (node.children[v].fileType === RecognizedFileType.dir) {
-                    obj[v] = this.castRenderData(node.children[v])
-                } else {
-                    if (node.children[v].data) obj[v] = node.children[v].data
-                }
-                return obj
-            }, {
-                meta: {
-                    basename: node.baseName,
-                    filePath: node.filePath,
-                    relPath: node
-                        .relPath.split(path.sep).slice(1).join("/")
-                }
-            })
-    }
-
-    render(node: FSTreeNode, copyAssets: boolean = true) {
-        const relPath = path
-            .relative(this.controller.rootPath, node.filePath)
-            .split(path.sep)
-            .slice(1)
-            .join(path.sep)
-
-        if (node.data?.copy) {
-            const copyDest = path
-                .resolve(this.controller.distPath, relPath)
-            fs.mkdirSync(path.dirname(copyDest), { recursive: true })
-            fs.copyFileSync(node.filePath, copyDest)
-            consola.success(copyDest)
-        }
-
-        if (node.fileType !== RecognizedFileType.dir) return
-
-        const outFolder = path
-            .resolve(this.controller.distPath, relPath)
-
-        // copy assets
-        Object.values(node.children).forEach(child => {
-            if (!copyAssets) return
-            if (child.data?.copy) {
-                const outFile = path.resolve(outFolder, child.baseName)
-                fs.mkdirSync(outFolder, { recursive: true })
-                fs.copyFileSync(child.filePath, outFile)
-                consola.success(outFile)
-            }
+    consume() {
+        this.taskQueue.forEach((v, i) => {
+            // console.log(v.filePath, this.taskMap[v.filePath], i)
+            this.render(v)
         })
+        this.taskQueue = []
+    }
 
-        // render html page
-        let isRenderAnchor = Object
-            .keys(node.children)
-            .includes("conf.yaml")
+    castDataSeries(node: FSTreeNode): any {
+        return {
+            ...node.data,
+            ...Object.keys(node.children)
+                .reduce((obj: any, v) => {
+                    obj[v] = this.castDataSeries(node.children[v])
+                    return obj
+                }, {})
+        }
+    }
 
-        if (!isRenderAnchor) return
+    render(node: FSTreeNode) {
+        const distPath = path.join(
+            this.controller.distPath,
+            node.relPath
+                .split(path.sep)
+                .slice(1)
+                .join(path.sep))
 
+        if (node.type === "asset") {
+            fs.mkdirSync(path.dirname(distPath), { recursive: true })
+            fs.copyFileSync(node.nodePath, distPath)
+            return
+        }
 
-        let data = this.castRenderData(node)
-        const templateName = data['conf.yaml']?.template
+        if (node.type === "md" || node.type === "yaml") {
+            node.cast()
+            return
+        }
 
-        if (!templateName) return
+        const data = this.castDataSeries(node)
+        const templateNode = this.controller.templateMap[
+            node.data!["conf.yaml"].template
+        ]
 
-        // Register template - node relation
-        if (!this.templateMap[templateName]) this.templateMap[templateName] = []
-        let nodeInList = this.templateMap[templateName]
-            .reduce((r, v) => r || v.filePath === node.filePath, false)
-        if (!nodeInList && node.fileType === RecognizedFileType.dir)
-            this.templateMap[templateName].push(node)
-
-
-        // Render to file
-        const prefix = data["conf.yaml"].trimPrefix ? ".." : "."
-        const outFilePath = path.resolve(outFolder, prefix, "index.html")
-        const templateNode = this.controller.findTemplateNode(templateName)
 
         // Invoke renderer specific function
-        this.doEjsRendering(templateNode.filePath, data, (err: Error | undefined, html: string) => {
-            if (err) {
-                consola.error(data.meta.filePath)
-                console.error(err);
-                return
-            }
+        this.doEjsRendering(
+            templateNode.nodePath, data,
+            (err: Error | undefined, html: string) => {
+                if (err) {
+                    consola.error(data.meta.filePath)
+                    console.error(err);
+                    return
+                }
 
-            fs.mkdirSync(path.dirname(outFilePath), { recursive: true })
+                fs.mkdirSync(path.dirname(distPath), { recursive: true })
 
 
-            fs.writeFileSync(
-                outFilePath,
-                this.controller.options.production
-                    ? minify(html, { minifyCSS: true, minifyJS: true, collapseWhitespace: true })
-                    : html
-            )
+                fs.writeFileSync(
+                    distPath,
+                    this.controller.options.production
+                        ? minify(html, { minifyCSS: true, minifyJS: true, collapseWhitespace: true })
+                        : html
+                )
 
-            consola.success(outFilePath)
-        })
+                consola.success(distPath)
+            })
     }
 
     doEjsRendering(templatePath: string, data: any, callback: Function) {
@@ -162,7 +93,6 @@ export class RenderController {
                 data
             }, {
                 context: {
-                    global: this.controller.globalData,
                     utils: {
                         dayjs
                     }
@@ -179,26 +109,6 @@ export class RenderController {
             })
         } catch (error) {
             callback(error, undefined)
-        }
-    }
-
-    renderAll() {
-        this.taskQueue.forEach((v, i) => {
-            // console.log(v.filePath, this.taskMap[v.filePath], i)
-            if (this.taskMap[v.filePath] !== i) return
-            this.render(v)
-        })
-        this.taskQueue = []
-        this.taskMap = {}
-
-        if (this.booting) {
-            this.booting = false
-            consola.ready(`development server started at http://localhost:${this.controller.options.bsInstance?.getOption("port")}`)
-        }
-
-        if (!this.controller.options.dev) {
-            consola.success("generation successfully finished")
-            process.exit()
         }
     }
 }
