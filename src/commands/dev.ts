@@ -8,6 +8,8 @@ import { Ploceus, SiteConfig } from "../core"
 import { Command, flags } from "@oclif/command"
 
 export default class Dev extends Command {
+    bsInstance?: bs.BrowserSyncInstance
+
     static description = 'Start development mode.'
 
     static examples = [
@@ -27,6 +29,20 @@ export default class Dev extends Command {
 
         const sourcePath = path.resolve(args.path)
         const distPath = path.resolve(sourcePath, "dist")
+
+        this.startPloceus(sourcePath)
+
+        this.bsInstance = bs.init({
+            server: distPath,
+            logLevel: 'silent',
+            files: `${distPath}/**/*`,
+            ghostMode: false,
+            open: false
+        })
+    }
+
+    startPloceus(sourcePath: string) {
+        const distPath = path.resolve(sourcePath, "dist")
         const siteConfPath = path.join(sourcePath, "site.yaml")
 
         if (!fs.existsSync(siteConfPath)) {
@@ -41,20 +57,15 @@ export default class Dev extends Command {
         fs.rmSync(distPath, { recursive: true, force: true })
         fs.mkdirSync(distPath, { recursive: true })
 
-        const bsInstance = bs.init({
-            server: distPath,
-            logLevel: 'silent',
-            files: `${distPath}/**/*`,
-            ghostMode: false,
-            open: false
-        })
-
         new Ploceus(sourcePath, {
             dev: true, production: false, siteConfig
         }).on("ready", () => {
-            consola.ready(`development server started at http://localhost:${bsInstance.getOption("port")}`)
+            consola.ready(`development server started at http://localhost:${this.bsInstance!.getOption("port")}`)
         }).on("error", error => {
             consola.error(error.message)
+        }).on("restart", () => {
+            consola.info("restarting ploceus instance")
+            this.startPloceus(sourcePath)
         })
     }
 }

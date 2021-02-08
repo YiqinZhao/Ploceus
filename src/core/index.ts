@@ -26,6 +26,7 @@ export class Ploceus {
     templateRefs: { [key: string]: FSTreeNode[] } = {}
 
     fsTree: FSTree
+    watcher: chokidar.FSWatcher
     listeners: { [key: string]: Function } = {}
 
     constructor(rootPath: string, options: PloceusOptions) {
@@ -36,11 +37,12 @@ export class Ploceus {
         this.fsTree = new FSTree(this)
         this.renderController = new RenderController(this)
 
-        chokidar.watch([
+        this.watcher = chokidar.watch([
             path.join(this.rootPath, "content"),
             path.join(this.rootPath, "theme"),
             path.join(this.rootPath, "site.yaml")
         ], {
+            interval: 1000,
             ignored: this.options.siteConfig.ignore
         }).on("all", this.onScanEvent.bind(this))
             .on("error", this.onScanError.bind(this))
@@ -92,8 +94,11 @@ export class Ploceus {
             return
         }
 
-        if (node && node!.nodePath === path.join(this.rootPath, "site.yaml")) {
-            node!.cast()
+        if (node
+            && node!.nodePath === path.join(this.rootPath, "site.yaml")
+            && !this.isBooting) {
+            this.watcher.close()
+            this.listeners.restart()
         }
 
         if (this.isBooting) {
@@ -107,9 +112,10 @@ export class Ploceus {
 
     on(event: "ready", listener: () => void): Ploceus;
     on(event: "close", listener: () => void): Ploceus;
+    on(event: "restart", listener: () => void): Ploceus;
     on(event: "error", listener: (error: Error) => void): Ploceus;
 
-    on(event: "ready" | "close" | "error", listener: Function): Ploceus {
+    on(event: "ready" | "close" | "restart" | "error", listener: Function): Ploceus {
         this.listeners[event] = listener
         return this
     }
