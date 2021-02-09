@@ -11,8 +11,7 @@
   "files": [
     "dist",
     "/bin",
-    "/npm-shrinkwrap.json",
-    "/oclif.manifest.json"
+    "/npm-shrinkwrap.json"
   ],
   "scripts": {
     "build": "tsc",
