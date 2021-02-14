@@ -73,6 +73,8 @@ export class RenderController {
         const templateNode = this.controller
             .templateMap[data["conf.yaml"].template]
 
+        if (!templateNode) return
+
         if (!(this.controller.templateRefs[templateNode.baseName]
             .map(v => v.nodePath).includes(node.nodePath))) {
             this.controller.templateRefs[templateNode.baseName].push(node)
