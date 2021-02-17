@@ -108,7 +108,8 @@ export class RenderController {
         try {
             ejs.renderFile(templatePath, {
                 config: {
-                    site: this.controller.options.siteConfig
+                    site: this.controller.options.siteConfig,
+                    page: data['conf.yaml']
                 },
                 data
             }, {
