@@ -114,6 +114,7 @@ export class RenderController {
                 data
             }, {
                 context: {
+                    production: this.controller.options.production,
                     utils: {
                         dayjs
                     }
