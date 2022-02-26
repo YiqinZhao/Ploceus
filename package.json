@@ -59,6 +59,6 @@
     "markdown-it-anchor": "^7.1.0",
     "markdown-it-emoji": "^2.0.0",
     "markdown-it-prism": "^2.1.6",
-    "prismjs": "^1.23.0"
+    "prismjs": "^1.27.0"
   }
 }
