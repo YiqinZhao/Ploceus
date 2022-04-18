@@ -18,7 +18,7 @@
     "prepack": "rm -rf dist && tsc -b && oclif manifest && oclif readme"
   },
   "devDependencies": {
-    "@types/browser-sync": "^2.26.3",
+    "@types/browser-sync": "*",
     "@types/cheerio": "^0.22.31",
     "@types/crypto-js": "^4.1.1",
     "@types/ejs": "^3.1.0",
@@ -44,7 +44,7 @@
   "dependencies": {
     "@iktakahiro/markdown-it-katex": "^4.0.1",
     "@oclif/command": "^1.8.16",
-    "@oclif/plugin-help": "^5.1.12",
+    "@oclif/plugin-help": "^5.1.10",
     "@types/js-yaml": "^4.0.5",
     "@types/prismjs": "^1.26.0",
     "browser-sync": "^1.9.2",
