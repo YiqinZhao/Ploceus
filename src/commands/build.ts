@@ -27,15 +27,18 @@ export default class Build extends Command {
         const sourcePath = path.resolve(args.path)
         const siteConfPath = path.join(sourcePath, "site.yaml")
 
+        // File-related error handling
         if (!fs.existsSync(siteConfPath)) {
             consola.error("site.yaml not found")
             process.exit(1)
         }
 
+        // Load main site configuration YAML file
         let siteConfig = yaml.load(
             fs.readFileSync(siteConfPath).toString()
         ) as SiteConfig
 
+        // Remove dist folder
         fs.rmSync(
             path.resolve(sourcePath, "dist"),
             { recursive: true, force: true })
@@ -44,6 +47,7 @@ export default class Build extends Command {
             consola.start("Building site with production optimization.")
         }
 
+        // Start building
         new Ploceus(sourcePath, {
             production: flags.production, siteConfig
         }).on("ready", () => {

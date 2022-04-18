@@ -10,7 +10,6 @@ export interface SiteConfig {
 }
 
 interface PloceusOptions {
-    dev?: boolean,
     production: boolean,
     siteConfig: SiteConfig
 }

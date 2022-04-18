@@ -58,7 +58,7 @@ export default class Dev extends Command {
         fs.mkdirSync(distPath, { recursive: true })
 
         new Ploceus(sourcePath, {
-            dev: true, production: false, siteConfig
+            production: false, siteConfig
         }).on("ready", () => {
             consola.ready(`development server started at http://localhost:${this.bsInstance!.getOption("port")}`)
         }).on("error", error => {
